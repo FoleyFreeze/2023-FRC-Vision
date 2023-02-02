@@ -23,6 +23,74 @@ class NTConnectType(Enum):
     SERVER = 1
     CLIENT = 2
 
+class NTGetString:
+    def __init__(self, stringTopic: ntcore.StringTopic, init, default, failsafe):
+        self.init = init
+        self.default = default
+        self.failsafe = failsafe
+        # start subscribing; the return value must be retained.
+        # the parameter is the default value if no value is available when get() is called
+        self.StringEntry = stringTopic.getEntry(failsafe)
+
+        self.StringEntry.setDefault(default)
+        self.StringEntry.set(init)
+
+    def get(self):
+        return self.StringEntry.get(self.failsafe)
+
+    def unpublish(self):
+        # you can stop publishing while keeping the subscriber alive
+        self.StringEntry.unpublish()
+
+    def close(self):
+        # stop subscribing/publishing
+        self.StringEntry.close()
+
+class NTGetDouble:
+    def __init__(self, dblTopic: ntcore.DoubleTopic, init, default, failsafe):
+        self.init = init
+        self.default = default
+        self.failsafe = failsafe
+        # start subscribing; the return value must be retained.
+        # the parameter is the default value if no value is available when get() is called
+        self.dblEntry = dblTopic.getEntry(failsafe)
+        self.dblEntry.setDefault(default)
+        self.dblEntry.set(init)
+
+    def get(self):
+        return self.dblEntry.get(self.failsafe)
+
+    def unpublish(self):
+        # you can stop publishing while keeping the subscriber alive
+        self.dblEntry.unpublish()
+
+    def close(self):
+        # stop subscribing/publishing
+        self.dblEntry.close()
+
+class NTGetBoolean:
+    def __init__(self, dblTopic: ntcore.BooleanTopic, init, default, failsafe):
+        self.init = init
+        self.default = default
+        self.failsafe = failsafe
+
+        # start subscribing; the return value must be retained.
+        # the parameter is the default value if no value is available when get() is called
+        self.dblEntry = dblTopic.getEntry(failsafe)
+
+        self.dblEntry.setDefault(default)
+        self.dblEntry.set(init)
+
+    def get(self):
+        return self.dblEntry.get(self.failsafe)
+
+    def unpublish(self):
+        # you can stop publishing while keeping the subscriber alive
+        self.dblEntry.unpublish()
+
+    def close(self):
+        # stop subscribing/publishing
+        self.dblEntry.close()
 
 ntconnect = NTConnectType(NTConnectType.SERVER)
 
@@ -38,41 +106,26 @@ def main():
     detectorConfig = robotpy_apriltag.AprilTagDetector.Config()
     
     # Table for vision output information
-    vision_nt = ntinst.getTable('Vision')
-    uptime_nte = vision_nt.getEntry("Uptime")
-    debug_nte = vision_nt.getEntry("Debug Mode")
-    numThreads_nte = vision_nt.getEntry("Threads")
-    quadDecimate_nte = vision_nt.getEntry("Decimate")
-    quadSigma_nte = vision_nt.getEntry("Blur")
-    refineEdges_nte = vision_nt.getEntry("Edge Refine")
-    decodeSharpening_nte = vision_nt.getEntry("Sharpening")
-    ATdebug_nte = vision_nt.getEntry("April Tag Debug")
-    decision_margin_nte = vision_nt.getEntry("Decision Margin")
+    
+    uptime_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Uptime"), 0, 0, -1)
+    debug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Debug Mode"), False, DEBUG_MODE_DEFAULT, DEBUG_MODE_DEFAULT)
+    threads_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Threads"),THREADS_DEFAULT, THREADS_DEFAULT, THREADS_DEFAULT)
+    quadDecimate_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Decimate"),DECIMATE_DEFAULT, DECIMATE_DEFAULT, DECIMATE_DEFAULT)
+    blur_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Blur"),BLUR_DEFAULT, BLUR_DEFAULT, BLUR_DEFAULT) 
+    refineEdges_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Edge Refine"),REFINE_EDGES_DEFAULT, REFINE_EDGES_DEFAULT, REFINE_EDGES_DEFAULT) 
+    decodeSharpening_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Sharpening"), SHARPENING_DEFAULT, SHARPENING_DEFAULT, SHARPENING_DEFAULT)
+    ATDebug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/April Tag Debug"), APRILTAG_DEBUG_MODE_DEFAULT, APRILTAG_DEBUG_MODE_DEFAULT, APRILTAG_DEBUG_MODE_DEFAULT)
+    decision_margin_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Decision Margin"), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
 
     detectorConfig.numThreads = THREADS_DEFAULT
-    numThreads_nte.setInteger(THREADS_DEFAULT)
-
     detectorConfig.quadDecimate = DECIMATE_DEFAULT
-    quadDecimate_nte.setFloat(DECIMATE_DEFAULT)
-
     detectorConfig.quadSigma = BLUR_DEFAULT
-    quadSigma_nte.setFloat(BLUR_DEFAULT)
-
     detectorConfig.refineEdges = REFINE_EDGES_DEFAULT
-    refineEdges_nte.setBoolean(REFINE_EDGES_DEFAULT)
-
     detectorConfig.decodeSharpening = SHARPENING_DEFAULT
-    decodeSharpening_nte.setDouble(SHARPENING_DEFAULT)
-    
     detectorConfig.debug = APRILTAG_DEBUG_MODE_DEFAULT
-    ATdebug_nte.setBoolean(APRILTAG_DEBUG_MODE_DEFAULT)
-
-    decision_margin_nte.setInteger(DECISION_MARGIN_DEFAULT)
-    
     detector.setConfig(detectorConfig)
     detector.addFamily("tag16h5")
     
-    debug_nte.setBoolean(DEBUG_MODE_DEFAULT)
 
     # Wait for NetworkTables to start
     time.sleep(0.5)
@@ -126,7 +179,7 @@ def main():
         detectorConfig.debug = ATdebug_nte.getBoolean(APRILTAG_DEBUG_MODE_DEFAULT)
         detector.setConfig(detectorConfig)
         
-        print(decision_margin_nte.getInteger(DECISION_MARGIN_DEFAULT))
+        #print(decision_margin_nte.getInteger(DECISION_MARGIN_DEFAULT))
         
         detected = detector.detect(gimg)
         for tag in detected:
