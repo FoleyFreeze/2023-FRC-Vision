@@ -1,5 +1,6 @@
 # Import the camera server
 from cscore import CameraServer
+import ntcore
 from ntcore import NetworkTableInstance
 from enum import Enum
 
@@ -30,21 +31,24 @@ class NTGetString:
         self.failsafe = failsafe
         # start subscribing; the return value must be retained.
         # the parameter is the default value if no value is available when get() is called
-        self.StringEntry = stringTopic.getEntry(failsafe)
+        self.stringTopic = stringTopic.getEntry(failsafe)
 
-        self.StringEntry.setDefault(default)
-        self.StringEntry.set(init)
+        self.stringTopic.setDefault(default)
+        self.stringTopic.set(init)
 
     def get(self):
-        return self.StringEntry.get(self.failsafe)
+        return self.stringTopic.get(self.failsafe)
+
+    def set(self, string):
+        self.stringTopic.set(string)
 
     def unpublish(self):
         # you can stop publishing while keeping the subscriber alive
-        self.StringEntry.unpublish()
+        self.stringTopic.unpublish()
 
     def close(self):
         # stop subscribing/publishing
-        self.StringEntry.close()
+        self.stringTopic.close()
 
 class NTGetDouble:
     def __init__(self, dblTopic: ntcore.DoubleTopic, init, default, failsafe):
@@ -53,44 +57,48 @@ class NTGetDouble:
         self.failsafe = failsafe
         # start subscribing; the return value must be retained.
         # the parameter is the default value if no value is available when get() is called
-        self.dblEntry = dblTopic.getEntry(failsafe)
-        self.dblEntry.setDefault(default)
-        self.dblEntry.set(init)
+        self.dblTopic = dblTopic.getEntry(failsafe)
+        self.dblTopic.setDefault(default)
+        self.dblTopic.set(init)
 
     def get(self):
-        return self.dblEntry.get(self.failsafe)
+        return self.dblTopic.get(self.failsafe)
+
+    def set(self, double):
+        self.dblTopic.set(double)
 
     def unpublish(self):
         # you can stop publishing while keeping the subscriber alive
-        self.dblEntry.unpublish()
+        self.dblTopic.unpublish()
 
     def close(self):
         # stop subscribing/publishing
-        self.dblEntry.close()
+        self.dblTopic.close()
 
 class NTGetBoolean:
-    def __init__(self, dblTopic: ntcore.BooleanTopic, init, default, failsafe):
+    def __init__(self, boolTopic: ntcore.BooleanTopic, init, default, failsafe):
         self.init = init
         self.default = default
         self.failsafe = failsafe
 
         # start subscribing; the return value must be retained.
         # the parameter is the default value if no value is available when get() is called
-        self.dblEntry = dblTopic.getEntry(failsafe)
+        self.boolTopic = boolTopic.getEntry(failsafe)
 
-        self.dblEntry.setDefault(default)
-        self.dblEntry.set(init)
+        self.boolTopic.setDefault(default)
+        self.boolTopic.set(init)
 
     def get(self):
-        return self.dblEntry.get(self.failsafe)
-
+        return self.boolTopic.get(self.failsafe)
+    def set(self, boolean):
+        self.boolTopic.set(boolean)
     def unpublish(self):
         # you can stop publishing while keeping the subscriber alive
-        self.dblEntry.unpublish()
+        self.boolTopic.unpublish()
 
     def close(self):
         # stop subscribing/publishing
-        self.dblEntry.close()
+        self.boolTopic.close()
 
 ntconnect = NTConnectType(NTConnectType.SERVER)
 
@@ -154,8 +162,8 @@ def main():
         if int(current_seconds - prev_seconds) >= SECOND_COUNTER:
             prev_seconds = current_seconds
             seconds = seconds + 1
-            uptime_nte.setInteger(seconds)
-            
+            uptime_ntt.set(seconds)
+            print(seconds)
 
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
@@ -171,27 +179,26 @@ def main():
         #
         gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        detectorConfig.numThreads = numThreads_nte.getInteger(THREADS_DEFAULT)
-        detectorConfig.quadDecimate = quadDecimate_nte.getFloat(DECIMATE_DEFAULT)
-        detectorConfig.quadSigma = quadSigma_nte.getFloat(BLUR_DEFAULT)
-        detectorConfig.refineEdges = refineEdges_nte.getBoolean(REFINE_EDGES_DEFAULT)
-        detectorConfig.decodeSharpening = decodeSharpening_nte.getDouble(SHARPENING_DEFAULT)
-        detectorConfig.debug = ATdebug_nte.getBoolean(APRILTAG_DEBUG_MODE_DEFAULT)
+        detectorConfig.numThreads = int(threads_ntt.get())
+        detectorConfig.quadDecimate = quadDecimate_ntt.get()
+        detectorConfig.quadSigma = blur_ntt.get()
+        detectorConfig.refineEdges = refineEdges_ntt.get()
+        detectorConfig.decodeSharpening = decodeSharpening_ntt.get()
+        detectorConfig.debug = ATDebug_ntt.get()
         detector.setConfig(detectorConfig)
-        
-        #print(decision_margin_nte.getInteger(DECISION_MARGIN_DEFAULT))
-        
+            
         detected = detector.detect(gimg)
         for tag in detected:
-            if tag.getDecisionMargin() > decision_margin_nte.getInteger(DECISION_MARGIN_DEFAULT):
-                print(tag.getId())
+            if tag.getDecisionMargin() > decision_margin_ntt.get() and tag.getId() >= 1 and tag.getId() <= 8:
+                if debug_ntt.get() == True:
+                    print(tag)
+                    cv2.line(img,(int(tag.getCornerX[0]), int(tag.getCornerY[0]))),int(((tag.getCornerX[1]), int(tag.getCornerY[1])),(0,255,0),20) #starts at top left corner of apriltag
+                    cv2.line(img,(int(tag.getCornerX[1]), int(tag.getCornerY[1]))),int(((tag.getCornerX[2]), int(tag.getCornerY[2])),(0,255,0),20) #top left to bottom left
+                    cv2.line(img,(int(tag.getCornerX[2]), int(tag.getCornerY[2]))),int(((tag.getCornerX[3]), int(tag.getCornerY[3])),(0,255,0),20) #bottom left to bottom right
+                    cv2.line(img,(int(tag.getCornerX[3]), int(tag.getCornerY[3]))),int(((tag.getCornerX[0]), int(tag.getCornerY[0])),(0,255,0),20) #bottom right to top right
+                    cv2.putText(img, tag.getId(), (int(tag.getCenterX()),int(tag.getCenterY())), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255) ) # ID in center
 
-        processing_time = time.time() - start_time
-        fps = 1 / processing_time
-        if debug_nte.getBoolean(DEBUG_MODE_DEFAULT) == True:
-            cv2.putText(img, str(round(fps, 1)), (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
-            cv2.putText(img, ":)", (int(X_RES / 2), int(Y_RES / 2)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255) )
-            # (optional) send some image back to the dashboard
-            outputStream.putFrame(img)
-       
+        if debug_ntt.get() == True:
+            outputStream.putFrame(img) # send to dashboard
+
 main()
