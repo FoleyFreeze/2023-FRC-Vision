@@ -191,12 +191,21 @@ def main():
         for tag in detected:
             if tag.getDecisionMargin() > decision_margin_ntt.get() and tag.getId() >= 1 and tag.getId() <= 8:
                 if debug_ntt.get() == True:
-                    print(tag)
-                    cv2.line(img,(int(tag.getCornerX[0]), int(tag.getCornerY[0]))),int(((tag.getCornerX[1]), int(tag.getCornerY[1])),(0,255,0),20) #starts at top left corner of apriltag
-                    cv2.line(img,(int(tag.getCornerX[1]), int(tag.getCornerY[1]))),int(((tag.getCornerX[2]), int(tag.getCornerY[2])),(0,255,0),20) #top left to bottom left
-                    cv2.line(img,(int(tag.getCornerX[2]), int(tag.getCornerY[2]))),int(((tag.getCornerX[3]), int(tag.getCornerY[3])),(0,255,0),20) #bottom left to bottom right
-                    cv2.line(img,(int(tag.getCornerX[3]), int(tag.getCornerY[3]))),int(((tag.getCornerX[0]), int(tag.getCornerY[0])),(0,255,0),20) #bottom right to top right
-                    cv2.putText(img, tag.getId(), (int(tag.getCenterX()),int(tag.getCenterY())), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255) ) # ID in center
+            
+                    x0 = int(tag.getCorner(0).x)
+                    y0 = int(tag.getCorner(0).y)
+                    x1 = int(tag.getCorner(1).x)
+                    y1 = int(tag.getCorner(1).y)
+                    x2 = int(tag.getCorner(2).x)
+                    y2 = int(tag.getCorner(2).y)
+                    x3 = int(tag.getCorner(3).x)
+                    y3 = int(tag.getCorner(3).y)
+
+                    cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 20) #starts at top left corner of apriltag
+                    cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 20) #top left to bottom left
+                    cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 20) #bottom left to bottom right
+                    cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 20) #bottom right to top right
+                    cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
 
         if debug_ntt.get() == True:
             outputStream.putFrame(img) # send to dashboard
