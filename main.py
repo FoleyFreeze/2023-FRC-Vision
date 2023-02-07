@@ -1,26 +1,50 @@
-def file_write(file, parser, threads, decimate, blur, refine, sharpen, atdebug, decisionmargin, configfile):
+def file_write(file, parser, threads, decimate, blur, refine, sharpen, atdebug, decisionmargin):
 
-    print(file)
-    print(THREADS_TOPIC_NAME)
-    print(threads)
-    print(str(threads))
-    parser['t'] = '3'
-    print(parser['t'])
-    parser[DECIMATE_TOPIC_NAME] = str(decimate)
-    parser[BLUR_TOPIC_NAME] = str(blur)
-    parser[REFINE_EDGES_TOPIC_NAME] = str(refine)
-    parser[SHARPENING_TOPIC_NAME] = str(sharpen)
-    parser[APRILTAG_DEBUG_MODE_TOPIC_NAME] = str(atdebug)
-    parser[DECISION_MARGIN_TOPIC_NAME] = str(decisionmargin)
-    parser[CONFIG_FILE_TOPIC_NAME] = str(configfile)
+    parser['VISION'] = {THREADS_TOPIC_NAME: str(threads),
+                     DECIMATE_TOPIC_NAME: str(decimate),
+                     BLUR_TOPIC_NAME : str(blur),
+                     REFINE_EDGES_TOPIC_NAME : str(refine),
+                     SHARPENING_TOPIC_NAME : str(sharpen),
+                     APRILTAG_DEBUG_MODE_TOPIC_NAME : str(atdebug),
+                     DECISION_MARGIN_TOPIC_NAME : str(decisionmargin),
+                     CONFIG_FILE_TOPIC_NAME : str(file)
+                     }
 
     with open(file, 'w') as config:
         parser.write(config)
 
-    print("file write end")
+    with open('Config_file_name_holder_file', 'w') as container:
+        container.write(file)
 
-    print(os.path.isfile("config.ini"))
+def file_read(parser, configfile_failure_ntt):
+    container_exists = os.path.isfile('Config_file_name_holder_file')
+    if container_exists == True:
+        container = open('Config_file_name_holder_file', 'r')
+        config_file = container.readline()
+        container.close()
+        config_exists = os.path.isfile(config_file)
+        if config_exists == True:
+            config_hndl = open(config_file, 'r')
+            parser.read(config_hndl)
+            config_hndl.close()
+    else: # re-create config and container file to default
+        configfile_failure_ntt.set(True) # set error for config file
+        parser['VISION'] = {THREADS_TOPIC_NAME: str(THREADS_DEFAULT),
+                    DECIMATE_TOPIC_NAME: str(DECIMATE_DEFAULT),
+                    BLUR_TOPIC_NAME : str(BLUR_DEFAULT),
+                    REFINE_EDGES_TOPIC_NAME : str(REFINE_EDGES_DEFAULT),
+                    SHARPENING_TOPIC_NAME : str(SHARPENING_DEFAULT),
+                    APRILTAG_DEBUG_MODE_TOPIC_NAME : str(APRILTAG_DEBUG_MODE_DEFAULT),
+                    DECISION_MARGIN_TOPIC_NAME : str(DECISION_MARGIN_DEFAULT),
+                    CONFIG_FILE_TOPIC_NAME : str(CONFIG_FILE_DEFAULT)
+                    }
 
+        with open(CONFIG_FILE_DEFAULT, 'w') as config:
+            parser.write(config)
+
+        with open('Config_file_name_holder_file', 'w') as container:
+            container.write(str(CONFIG_FILE_DEFAULT))
+    
 def main():
     
     # start NetworkTables
@@ -30,11 +54,8 @@ def main():
         ntinst.startServer()
     else:
         ntinst.startClient4("raspberrypi910")
-    
-    detector = robotpy_apriltag.AprilTagDetector()
-    detectorConfig = robotpy_apriltag.AprilTagDetector.Config()
-    
-    # Table for vision output information    
+ 
+    # Table for vision output information
     uptime_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Uptime"), 0, 0, -1)
     debug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Debug Mode"), False, DEBUG_MODE_DEFAULT, DEBUG_MODE_DEFAULT)
     threads_ntt = NTGetDouble(ntinst.getDoubleTopic(THREADS_TOPIC_NAME),THREADS_DEFAULT, THREADS_DEFAULT, THREADS_DEFAULT)
@@ -46,22 +67,25 @@ def main():
     decision_margin_ntt = NTGetDouble(ntinst.getDoubleTopic(DECISION_MARGIN_TOPIC_NAME), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
     configfile_ntt = NTGetString(ntinst.getStringTopic(CONFIG_FILE_TOPIC_NAME), CONFIG_FILE_DEFAULT, CONFIG_FILE_DEFAULT, CONFIG_FILE_DEFAULT)
     savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save File"), False, False, False)
+    configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
 
     # Wait for NetworkTables to start
     time.sleep(0.5)
-
-    detectorConfig.numThreads = THREADS_DEFAULT
-    detectorConfig.quadDecimate = DECIMATE_DEFAULT
-    detectorConfig.quadSigma = BLUR_DEFAULT
-    detectorConfig.refineEdges = REFINE_EDGES_DEFAULT
-    detectorConfig.decodeSharpening = SHARPENING_DEFAULT
-    detectorConfig.debug = APRILTAG_DEBUG_MODE_DEFAULT
-    detector.setConfig(detectorConfig)
-    detector.addFamily("tag16h5")
     
-
-    # save to file
+    # use for file
     config = configparser.ConfigParser()
+    read_file(config, configfilefail_ntt)
+    detectorConfig.numThreads = int(config['VISION'][THREADS_TOPIC_NAME])
+    detectorConfig.quadDecimate = float(config['VISION'][DECIMATE_TOPIC_NAME])
+    detectorConfig.quadSigma = float (config['VISION'][BLUR_TOPIC_NAME])
+    detectorConfig.refineEdges = ast.literal_eval(config['VISION'][REFINE_EDGES_TOPIC_NAME])
+    detectorConfig.decodeSharpening = float(config['VISION'][SHARPENING_TOPIC_NAME])
+    detectorConfig.debug = ast.literal_eval(config['VISION'][APRILTAG_DEBUG_MODE_TOPIC_NAME])
+       
+    detector = robotpy_apriltag.AprilTagDetector()
+    detector.addFamily("tag16h5")
+    detectorConfig = robotpy_apriltag.AprilTagDetector.Config()
+    detector.setConfig(detectorConfig)
 
     # Capture from the first USB Camera on the system
     camera = CameraServer.startAutomaticCapture()
@@ -104,13 +128,14 @@ def main():
         #
         gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        detectorConfig.numThreads = int(threads_ntt.get())
-        detectorConfig.quadDecimate = quadDecimate_ntt.get()
-        detectorConfig.quadSigma = blur_ntt.get()
-        detectorConfig.refineEdges = refineEdges_ntt.get()
-        detectorConfig.decodeSharpening = decodeSharpening_ntt.get()
-        detectorConfig.debug = ATDebug_ntt.get()
-        detector.setConfig(detectorConfig)
+        if debug_ntt.get() == True:
+            detectorConfig.numThreads = int(threads_ntt.get())
+            detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
+            detectorConfig.quadSigma = float(blur_ntt.get())
+            detectorConfig.refineEdges = ast.literal_eval(refineEdges_ntt.get())
+            detectorConfig.decodeSharpening = float(decodeSharpening_ntt.get())
+            detectorConfig.debug = ast.literal_eval(ATDebug_ntt.get())
+            detector.setConfig(detectorConfig)
 
         detected = detector.detect(gimg)
         for tag in detected:
