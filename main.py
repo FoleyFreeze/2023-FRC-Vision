@@ -112,8 +112,15 @@ def main():
     camMatrix = calib_data["camMatrix"]
     distCoeffs = calib_data["distCoef"]
 
+    #camMatrix[0][0] = Focal point distance x (fx) 
+    #camMatrix[1][1] = Focal point distance y (fy) 
+    #camMatrix[0][2] = camera center x (cx) 
+    #camMatrix[1][2] = camera center y (cy) 
+
     apriltag_est_config = robotpy_apriltag.AprilTagPoseEstimator.Config(0.153, camMatrix[0][0], camMatrix[1][1], camMatrix[0][2], camMatrix[1][2])
     apriltag_est = robotpy_apriltag.AprilTagPoseEstimator(apriltag_est_config)
+    rVector = np.zeros((3,1))
+    tVector = np.zeros((3,1))
     
     # Capture from the first USB Camera on the system
     camera = CameraServer.startAutomaticCapture()
@@ -168,7 +175,7 @@ def main():
         detected = detector.detect(gimg)
         for tag in detected:
             if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
-                tag_pose = apriltag_est.estimate(tag)
+                tag_pose = apriltag_est.estimateHomography(tag)
                 if debug_ntt.get() == True:
                 
                     x0 = int(tag.getCorner(0).x)
@@ -184,8 +191,16 @@ def main():
                     cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 5) #bottom left to bottom right
                     cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 5) #bottom right to top right
                     cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
-                    #cv2.drawFrameAxes(img, camMatrix, distCoeffs, tag_pose.rotation(), tag_pose.translation(), 76, 3)
+                    rVector[0][0] = tag_pose.rotation().X()
+                    rVector[1][0] = tag_pose.rotation().Y()
+                    rVector[2][0] = tag_pose.rotation().Z()
+                    tVector[0][0] = tag_pose.translation().X()
+                    tVector[1][0] = tag_pose.translation().Y()
+                    tVector[2][0] = tag_pose.translation().Z()
 
+
+                    cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
+                    print( f'rot X: {tag_pose.rotation().X()} rot Y: {tag_pose.rotation().Y()} rot Z: {tag_pose.rotation().Z()} trans X: {tag_pose.translation().X()} trans Y: {tag_pose.translation().Y()} Trans Z: {tag_pose.translation().Z()}')
         if debug_ntt.get() == True:
             outputStream.putFrame(img) # send to dashboard
             if savefile_ntt.get() == True:
