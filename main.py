@@ -114,8 +114,8 @@ def main():
 
     #camMatrix[0][0] = Focal point distance x (fx) 
     #camMatrix[1][1] = Focal point distance y (fy) 
-    #camMatrix[0][2] = camera center x (cx) 
-    #camMatrix[1][2] = camera center y (cy) 
+    #camMatrix[0][2] = camera center  (cx) 
+    #camMatrix[1][2] = camera center  (cy) 
 
     apriltag_est_config = robotpy_apriltag.AprilTagPoseEstimator.Config(0.153, camMatrix[0][0], camMatrix[1][1], camMatrix[0][2], camMatrix[1][2])
     apriltag_est = robotpy_apriltag.AprilTagPoseEstimator(apriltag_est_config)
@@ -198,9 +198,14 @@ def main():
                     tVector[1][0] = tag_pose.translation().Y()
                     tVector[2][0] = tag_pose.translation().Z()
 
-
+                    #for rotation, ask if its shrinking on each axis 
                     cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
-                    print( f'rot X: {tag_pose.rotation().X()} rot Y: {tag_pose.rotation().Y()} rot Z: {tag_pose.rotation().Z()} trans X: {tag_pose.translation().X()} trans Y: {tag_pose.translation().Y()} Trans Z: {tag_pose.translation().Z()}')
+                    print( f'roll: {math.degrees(tag_pose.rotation().X())} \
+                        pitch: {math.degrees(tag_pose.rotation().Y())} \
+                        yaw: {math.degrees(tag_pose.rotation().Z())} \
+                        trans X: {(tag_pose.translation().X() / 100) / 2.54} \
+                        trans Y: {(tag_pose.translation().Y() / 100) / 2.54} \
+                        Trans Z: {(tag_pose.translation().Z() / 100) / 2.54}')
         if debug_ntt.get() == True:
             outputStream.putFrame(img) # send to dashboard
             if savefile_ntt.get() == True:
