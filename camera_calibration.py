@@ -7,7 +7,7 @@ import time
 CHESS_BOARD_DIM = (4,3)
 
 # The size of Square in the checker board.
-SQUARE_SIZE = 143.18 # millimeters
+SQUARE_SIZE = 0.14318 # meters
 
 # termination criteria
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
