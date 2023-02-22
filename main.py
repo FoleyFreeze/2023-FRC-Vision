@@ -84,6 +84,7 @@ def main():
     configfile_ntt = NTGetString(ntinst.getStringTopic(CONFIG_FILE_TOPIC_NAME), CONFIG_FILE_DEFAULT, CONFIG_FILE_DEFAULT, CONFIG_FILE_DEFAULT)
     savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save File"), False, False, False)
     configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
+    active_ntt = NTGetBoolean(ntinst.getBooleanTopic(ACTIVE_TOPIC_NAME), True, True, True)
 
     # Wait for NetworkTables to start
     time.sleep(0.5)
@@ -150,69 +151,74 @@ def main():
             uptime_ntt.set(seconds)
             print(seconds)
 
-        # Tell the CvSink to grab a frame from the camera and put it
-        # in the source image.  If there is an error notify the output.
-        frame_time, img = cvSink.grabFrame(img)
-        if frame_time == 0:
-            # Send the output the error.
-            outputStream.notifyError(cvSink.getError())
-            # skip the rest of the current iteration
-            continue
-        #
-        # Insert your image processing logic here!
-        #
-        gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if active_ntt.get() == True:
 
-        if debug_ntt.get() == True:
-            detectorConfig.numThreads = int(threads_ntt.get())
-            detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
-            detectorConfig.quadSigma = float(blur_ntt.get())
-            detectorConfig.refineEdges = refineEdges_ntt.get()
-            detectorConfig.decodeSharpening = float(decodeSharpening_ntt.get())
-            detectorConfig.debug = ATDebug_ntt.get()
-            detector.setConfig(detectorConfig)
 
-        detected = detector.detect(gimg)
-        for tag in detected:
-            if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
-                tag_pose = apriltag_est.estimateHomography(tag)
-                if debug_ntt.get() == True:
-                
-                    x0 = int(tag.getCorner(0).x)
-                    y0 = int(tag.getCorner(0).y)
-                    x1 = int(tag.getCorner(1).x)
-                    y1 = int(tag.getCorner(1).y)
-                    x2 = int(tag.getCorner(2).x)
-                    y2 = int(tag.getCorner(2).y)
-                    x3 = int(tag.getCorner(3).x)
-                    y3 = int(tag.getCorner(3).y)
-                    cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 5) #starts at top left corner of apriltag
-                    cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 5) #top left to bottom left
-                    cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 5) #bottom left to bottom right
-                    cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 5) #bottom right to top right
-                    cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
-                    rVector[0][0] = tag_pose.rotation().X()
-                    rVector[1][0] = tag_pose.rotation().Y()
-                    rVector[2][0] = tag_pose.rotation().Z()
-                    tVector[0][0] = tag_pose.translation().X()
-                    tVector[1][0] = tag_pose.translation().Y()
-                    tVector[2][0] = tag_pose.translation().Z()
+            # Tell the CvSink to grab a frame from the camera and put it
+            # in the source image.  If there is an error notify the output.
+            frame_time, img = cvSink.grabFrame(img)
+            if frame_time == 0:
+                # Send the output the error.
+                outputStream.notifyError(cvSink.getError())
+                # skip the rest of the current iteration
+                continue
+            
+            #
+            # Insert your image processing logic here!
+            #
+            gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-                    #for rotation, ask if its shrinking on each axis 
-                    cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
-                    print( f'roll: {math.degrees(tag_pose.rotation().X())} \
-                        pitch: {math.degrees(tag_pose.rotation().Y())} \
-                        yaw: {math.degrees(tag_pose.rotation().Z())} \
-                        trans X: {(tag_pose.translation().X() / 100) / 2.54} \
-                        trans Y: {(tag_pose.translation().Y() / 100) / 2.54} \
-                        Trans Z: {(tag_pose.translation().Z() / 100) / 2.54}')
-        if debug_ntt.get() == True:
-            outputStream.putFrame(img) # send to dashboard
-            if savefile_ntt.get() == True:
-                file_write(configfile_ntt.get(), threads_ntt.get(), \
-                    quadDecimate_ntt.get(), blur_ntt.get(), refineEdges_ntt.get(), \
-                    decodeSharpening_ntt.get(), ATDebug_ntt.get(), \
-                    decision_margin_ntt.get())
-                savefile_ntt.set(False)
+            if debug_ntt.get() == True:
+                detectorConfig.numThreads = int(threads_ntt.get())
+                detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
+                detectorConfig.quadSigma = float(blur_ntt.get())
+                detectorConfig.refineEdges = refineEdges_ntt.get()
+                detectorConfig.decodeSharpening = float(decodeSharpening_ntt.get())
+                detectorConfig.debug = ATDebug_ntt.get()
+                detector.setConfig(detectorConfig)
+                config.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
+
+            detected = detector.detect(gimg)
+            for tag in detected:
+                if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
+                    tag_pose = apriltag_est.estimateHomography(tag)
+                    if debug_ntt.get() == True:
+                    
+                        x0 = int(tag.getCorner(0).x)
+                        y0 = int(tag.getCorner(0).y)
+                        x1 = int(tag.getCorner(1).x)
+                        y1 = int(tag.getCorner(1).y)
+                        x2 = int(tag.getCorner(2).x)
+                        y2 = int(tag.getCorner(2).y)
+                        x3 = int(tag.getCorner(3).x)
+                        y3 = int(tag.getCorner(3).y)
+                        cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 5) #starts at top left corner of apriltag
+                        cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 5) #top left to bottom left
+                        cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 5) #bottom left to bottom right
+                        cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 5) #bottom right to top right
+                        cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
+                        rVector[0][0] = tag_pose.rotation().X()
+                        rVector[1][0] = tag_pose.rotation().Y()
+                        rVector[2][0] = tag_pose.rotation().Z()
+                        tVector[0][0] = tag_pose.translation().X()
+                        tVector[1][0] = tag_pose.translation().Y()
+                        tVector[2][0] = tag_pose.translation().Z()
+
+                        #for rotation, ask if its shrinking on each axis 
+                        cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
+                        print( f'roll: {math.degrees(tag_pose.rotation().X())} \
+                            pitch: {math.degrees(tag_pose.rotation().Y())} \
+                            yaw: {math.degrees(tag_pose.rotation().Z())} \
+                            trans X: {(tag_pose.translation().X() / 100) / 2.54} \
+                            trans Y: {(tag_pose.translation().Y() / 100) / 2.54} \
+                            Trans Z: {(tag_pose.translation().Z() / 100) / 2.54}')
+            if debug_ntt.get() == True:
+                outputStream.putFrame(img) # send to dashboard
+                if savefile_ntt.get() == True:
+                    file_write(configfile_ntt.get(), threads_ntt.get(), \
+                        quadDecimate_ntt.get(), blur_ntt.get(), refineEdges_ntt.get(), \
+                        decodeSharpening_ntt.get(), ATDebug_ntt.get(), \
+                        decision_margin_ntt.get())
+                    savefile_ntt.set(False)
 
 main()
