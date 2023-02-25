@@ -1,3 +1,47 @@
+def pose_data_string(time, sequence_num, tags, tag_poses):
+    string = ""
+    tag_pose = 0
+    string = f'{time:1.3f}, {sequence_num}, {len(tags)}, '
+
+    for tag in tags:
+        string += f'{tag.getId()},\
+        {math.degrees(tag_poses[tag_pose].rotation().X()):3.1f},\
+        {math.degrees(tag_poses[tag_pose].rotation().Y()):3.1f},\
+        {math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f},\
+        {(tag_poses[tag_pose].translation().X() / 100) / 2.54:4.3f},\
+        {(tag_poses[tag_pose].translation().Y() / 100) / 2.54:4.3f},\
+        {(tag_poses[tag_pose].translation().Z() / 100) / 2.54:4.3f},'
+        tag_pose += 1
+    return string
+
+def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
+    tag_pose = 0
+    
+    for tag in tags:
+        x0 = int(tag.getCorner(0).x)
+        y0 = int(tag.getCorner(0).y)
+        x1 = int(tag.getCorner(1).x)
+        y1 = int(tag.getCorner(1).y)
+        x2 = int(tag.getCorner(2).x)
+        y2 = int(tag.getCorner(2).y)
+        x3 = int(tag.getCorner(3).x)
+        y3 = int(tag.getCorner(3).y)
+        cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 5) #starts at top left corner of apriltag
+        cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 5) #top left to bottom left
+        cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 5) #bottom left to bottom right
+        cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 5) #bottom right to top right
+        cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
+        rVector[0][0] = tag_poses[tag_pose].rotation().X()
+        rVector[1][0] = tag_poses[tag_pose].rotation().Y()
+        rVector[2][0] = tag_poses[tag_pose].rotation().Z()
+        tVector[0][0] = tag_poses[tag_pose].translation().X()
+        tVector[1][0] = tag_poses[tag_pose].translation().Y()
+        tVector[2][0] = tag_poses[tag_pose].translation().Z()
+        tag_pose += 1
+        #for rotation, ask if its shrinking on each axis 
+        cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
+    return img
+
 def file_write(file, threads, decimate, blur, refine, sharpen, atdebug, decisionmargin):
 
     parser = configparser.ConfigParser()
@@ -76,16 +120,17 @@ cube:
 number of cubes detected: unsigned char (1 byte)
 for each cube: pose x: float (4 bytes), pose y: float (4 bytes), pose z: float (4 bytes), pose x angle: float (4 bytes), pose y angle: float (4 bytes), pose z angle: float (4 bytes)
 '''
-def format_pose_data(time, sequence_num, tag_dict):
+def pose_data_bytes(time, sequence_num, tags, tag_poses):
     byte_array = bytearray()
     # get a list of tags that were detected
-    tags = tag_dict.keys()
     # start the array with image time, sequence number and tag type
+    tag_pose = 0
     byte_array += struct.pack("<fLBB", time, sequence_num, 1, len(tags))
-    for tag_id in tags:
-        byte_array += struct.pack("<ffffff", \
-            tag_dict[tag_id].rotation().X(), tag_dict[tag_id].rotation().Y(), tag_dict[tag_id].rotation().Z(), \
-            tag_dict[tag_id].translation().X(), tag_dict[tag_id].translation().Y(), tag_dict[tag_id].translation().Z())
+    for tag in tags:
+        byte_array += struct.pack("<Bffffff", tag.getId(), \
+            tag_poses[tag_pose].rotation().X(), tag_poses[tag_pose].rotation().Y(), tag_poses[tag_pose].rotation().Z(), \
+            tag_poses[tag_pose].translation().X(), tag_poses[tag_pose].translation().Y(), tag_poses[tag_pose].translation().Z())
+        tag_pose += 1
     return byte_array
 
 def main():
@@ -113,7 +158,9 @@ def main():
     savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save File"), False, False, False)
     configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
     active_ntt = NTGetBoolean(ntinst.getBooleanTopic(ACTIVE_TOPIC_NAME), True, True, True)
-    pose_data_ntt = NTGetRaw(ntinst, None, None, None)
+    pose_data_bytes_ntt = NTGetRaw(ntinst, None, None, None)
+    pose_data_string_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME),"", "", "")
+    temp_ntt = NTGetDouble(ntinst.getDoubleTopic(TEMP_TOPIC_NAME), 0, 0, 0)
 
     # Wait for NetworkTables to start
     time.sleep(0.5)
@@ -170,19 +217,24 @@ def main():
     seconds = 0
     current_seconds = 0
     prev_seconds = 0
+    temp_sec = 30
     while True:
         
         start_time = time.time()
         current_seconds = start_time
-        if int(current_seconds - prev_seconds) >= SECOND_COUNTER:
+        if int(current_seconds - prev_seconds) >= UPTIME_UPDATE_INTERVAL:
             prev_seconds = current_seconds
             seconds = seconds + 1
+            temp_sec = temp_sec + 1
             uptime_ntt.set(seconds)
             print(seconds)
-
+        
+        if int(temp_sec) >= TEMP_UPDATE_INTERVAL:
+            with open("/sys/class/thermal/thermal_zone0/temp", 'r') as f:
+                temp_ntt.set(int(f.readline()) / 1000) #converting milidegrees C to degrees C
+                temp_sec = 0
+        
         if active_ntt.get() == True:
-
-
             # Tell the CvSink to grab a frame from the camera and put it
             # in the source image.  If there is an error notify the output.
             frame_time, img = cvSink.grabFrame(img)
@@ -208,50 +260,25 @@ def main():
                 config.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
 
             detected = detector.detect(gimg)
-            tags = {}
+            tag_poses = []
+            tags = []
             for tag in detected:
                 if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
                     tag_pose = apriltag_est.estimateHomography(tag)
-                    tags = {str(tag.getId()) : tag_pose}
-                    image_num += 1
-                    image_time = time.time() - start_time
+                    tag_poses.append(tag_pose)
+                    tags.append(tag)
+        
+            image_num += 1
+            image_time = time.time() - start_time
                     
-                    if debug_ntt.get() == True:
-                    
-                        x0 = int(tag.getCorner(0).x)
-                        y0 = int(tag.getCorner(0).y)
-                        x1 = int(tag.getCorner(1).x)
-                        y1 = int(tag.getCorner(1).y)
-                        x2 = int(tag.getCorner(2).x)
-                        y2 = int(tag.getCorner(2).y)
-                        x3 = int(tag.getCorner(3).x)
-                        y3 = int(tag.getCorner(3).y)
-                        cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 5) #starts at top left corner of apriltag
-                        cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 5) #top left to bottom left
-                        cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 5) #bottom left to bottom right
-                        cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 5) #bottom right to top right
-                        cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
-                        rVector[0][0] = tag_pose.rotation().X()
-                        rVector[1][0] = tag_pose.rotation().Y()
-                        rVector[2][0] = tag_pose.rotation().Z()
-                        tVector[0][0] = tag_pose.translation().X()
-                        tVector[1][0] = tag_pose.translation().Y()
-                        tVector[2][0] = tag_pose.translation().Z()
-
-                        #for rotation, ask if its shrinking on each axis 
-                        cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
-                        print( f'roll: {math.degrees(tag_pose.rotation().X())} \
-                            pitch: {math.degrees(tag_pose.rotation().Y())} \
-                            yaw: {math.degrees(tag_pose.rotation().Z())} \
-                            trans X: {(tag_pose.translation().X() / 100) / 2.54} \
-                            trans Y: {(tag_pose.translation().Y() / 100) / 2.54} \
-                            Trans Z: {(tag_pose.translation().Z() / 100) / 2.54}')
-            
             if len(tags) > 0:
-                pose_data = format_pose_data(image_time, image_num, tags)
-                pose_data_ntt.set(pose_data)
+                pose_data = pose_data_bytes(image_time, image_num, tags, tag_poses)
+                pose_data_bytes_ntt.set(pose_data)
 
             if debug_ntt.get() == True:
+                if len(tags) > 0:
+                    img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
+                    pose_data_string_ntt.set(pose_data_string(image_time, image_num, tags, tag_poses))
                 outputStream.putFrame(img) # send to dashboard
                 if savefile_ntt.get() == True:
                     file_write(configfile_ntt.get(), threads_ntt.get(), \

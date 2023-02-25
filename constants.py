@@ -1,6 +1,7 @@
 X_RES = 640
 Y_RES = 480
-SECOND_COUNTER = 1
+UPTIME_UPDATE_INTERVAL = 1
+TEMP_UPDATE_INTERVAL= 30
 DEBUG_MODE_DEFAULT = False
 THREADS_DEFAULT = 3
 DECIMATE_DEFAULT = 1.0
@@ -20,4 +21,5 @@ DECISION_MARGIN_TOPIC_NAME = "/Vision/Decision Margin"
 CONFIG_FILE_TOPIC_NAME = "/Vision/Config File"
 ACTIVE_TOPIC_NAME = "/Vision/Active"
 POSE_DATA_RAW_TOPIC_NAME = "Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
-
+POSE_DATA_STRING_TOPIC_NAME ="/Vision/Pose Data String"
+TEMP_TOPIC_NAME = "Vision/Temperature"

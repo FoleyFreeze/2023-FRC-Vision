@@ -12,3 +12,4 @@ import os.path
 import ast
 import math
 import struct
+from math import log10, floor
