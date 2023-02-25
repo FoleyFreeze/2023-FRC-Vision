@@ -60,6 +60,34 @@ def nt_update(config, threads,quadDecimate, blur, refineEdges, decodeSharpening,
     decision.set(float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)))
     configfile.set(str(config.get('VISION', CONFIG_FILE_TOPIC_NAME)))
 
+'''
+all data to send is packaged as an array of bytes, using a Python bytearray, in little-endian format:
+image time: unsigned long (4 bytes)
+sequence number: unsigned long (4 bytes)
+type (tag = 1, cone = 2, cube = 3): unsigned char (1 byte)
+what follows these first 3 items depends on the type:
+tag:
+number of tags detected: unsigned char (1 byte)
+for each tag: tag id unsigned char (1 byte), pose x: float (4 bytes), pose y: float (4 bytes), pose z: float (4 bytes), pose x angle: float (4 bytes), pose y angle: float (4 bytes), pose z angle: float (4 bytes)
+cone:
+number of cones detected: unsigned char (1 byte)
+for each cone: pose x: float (4 bytes), pose y: float (4 bytes), pose z: float (4 bytes), pose x angle: float (4 bytes), pose y angle: float (4 bytes), pose z angle: float (4 bytes)
+cube:
+number of cubes detected: unsigned char (1 byte)
+for each cube: pose x: float (4 bytes), pose y: float (4 bytes), pose z: float (4 bytes), pose x angle: float (4 bytes), pose y angle: float (4 bytes), pose z angle: float (4 bytes)
+'''
+def format_pose_data(time, sequence_num, tag_dict):
+    byte_array = bytearray()
+    # get a list of tags that were detected
+    tags = tag_dict.keys()
+    # start the array with image time, sequence number and tag type
+    byte_array += struct.pack("<fLBB", time, sequence_num, 1, len(tags))
+    for tag_id in tags:
+        byte_array += struct.pack("<ffffff", \
+            tag_dict[tag_id].rotation().X(), tag_dict[tag_id].rotation().Y(), tag_dict[tag_id].rotation().Z(), \
+            tag_dict[tag_id].translation().X(), tag_dict[tag_id].translation().Y(), tag_dict[tag_id].translation().Z())
+    return byte_array
+
 def main():
     
     # start NetworkTables
@@ -85,6 +113,7 @@ def main():
     savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save File"), False, False, False)
     configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
     active_ntt = NTGetBoolean(ntinst.getBooleanTopic(ACTIVE_TOPIC_NAME), True, True, True)
+    pose_data_ntt = NTGetRaw(ntinst, None, None, None)
 
     # Wait for NetworkTables to start
     time.sleep(0.5)
@@ -137,7 +166,7 @@ def main():
     img = np.zeros(shape=(X_RES, Y_RES, 3), dtype=np.uint8)
 
     print("Hello")
-
+    image_num = 0
     seconds = 0
     current_seconds = 0
     prev_seconds = 0
@@ -179,9 +208,14 @@ def main():
                 config.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
 
             detected = detector.detect(gimg)
+            tags = {}
             for tag in detected:
                 if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
                     tag_pose = apriltag_est.estimateHomography(tag)
+                    tags = {str(tag.getId()) : tag_pose}
+                    image_num += 1
+                    image_time = time.time() - start_time
+                    
                     if debug_ntt.get() == True:
                     
                         x0 = int(tag.getCorner(0).x)
@@ -212,6 +246,11 @@ def main():
                             trans X: {(tag_pose.translation().X() / 100) / 2.54} \
                             trans Y: {(tag_pose.translation().Y() / 100) / 2.54} \
                             Trans Z: {(tag_pose.translation().Z() / 100) / 2.54}')
+            
+            if len(tags) > 0:
+                pose_data = format_pose_data(image_time, image_num, tags)
+                pose_data_ntt.set(pose_data)
+
             if debug_ntt.get() == True:
                 outputStream.putFrame(img) # send to dashboard
                 if savefile_ntt.get() == True:

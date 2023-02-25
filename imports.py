@@ -11,3 +11,4 @@ import os
 import os.path
 import ast
 import math
+import struct

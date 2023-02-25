@@ -18,3 +18,6 @@ SHARPENING_TOPIC_NAME = "/Vision/Sharpening"
 APRILTAG_DEBUG_MODE_TOPIC_NAME = "/Vision/April Tag Debug"
 DECISION_MARGIN_TOPIC_NAME = "/Vision/Decision Margin"
 CONFIG_FILE_TOPIC_NAME = "/Vision/Config File"
+ACTIVE_TOPIC_NAME = "/Vision/Active"
+POSE_DATA_RAW_TOPIC_NAME = "Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
+
