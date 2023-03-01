@@ -22,4 +22,5 @@ CONFIG_FILE_TOPIC_NAME = "/Vision/Config File"
 ACTIVE_TOPIC_NAME = "/Vision/Active"
 POSE_DATA_RAW_TOPIC_NAME = "Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
 POSE_DATA_STRING_TOPIC_NAME ="/Vision/Pose Data String"
-TEMP_TOPIC_NAME = "Vision/Temperature"
+TEMP_TOPIC_NAME = "/Vision/Temperature"
+RIO_TIME_TOPIC_NAME = "/Vision/RIO Time"

@@ -37,7 +37,8 @@ CONFIG_FILE_TOPIC_NAME = "/Vision/Config File"
 ACTIVE_TOPIC_NAME = "/Vision/Active"
 POSE_DATA_RAW_TOPIC_NAME = "Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
 POSE_DATA_STRING_TOPIC_NAME ="/Vision/Pose Data String"
-TEMP_TOPIC_NAME = "Vision/Temperature"
+TEMP_TOPIC_NAME = "/Vision/Temperature"
+RIO_TIME_TOPIC_NAME = "/Vision/RIO Time"
 class NTConnectType(Enum):
     SERVER = 1
     CLIENT = 2
@@ -133,10 +134,10 @@ class NTGetRaw:
     def close(self):
         # stop subscribing/publishing
         self.pub.close()
-def pose_data_string(time, sequence_num, tags, tag_poses):
+def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
     string = ""
     tag_pose = 0
-    string = f'{time:1.3f}, {sequence_num}, {len(tags)}, '
+    string = f'{sequence_num}, {rio_time:1.3f}, {time:1.3f}, {len(tags)}, '
 
     for tag in tags:
         string += f'{tag.getId()},\
@@ -255,12 +256,12 @@ cube:
 number of cubes detected: unsigned char (1 byte)
 for each cube: pose x: float (4 bytes), pose y: float (4 bytes), pose z: float (4 bytes), pose x angle: float (4 bytes), pose y angle: float (4 bytes), pose z angle: float (4 bytes)
 '''
-def pose_data_bytes(time, sequence_num, tags, tag_poses):
+def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
     byte_array = bytearray()
     # get a list of tags that were detected
-    # start the array with image time, sequence number and tag type
+    # start the array with sequence number, the RIO's time, image time, and tag type
     tag_pose = 0
-    byte_array += struct.pack("<fLBB", time, sequence_num, 1, len(tags))
+    byte_array += struct.pack("<LffBB", sequence_num, rio_time, image_time, 1, len(tags))
     for tag in tags:
         byte_array += struct.pack("<Bffffff", tag.getId(), \
             tag_poses[tag_pose].rotation().X(), tag_poses[tag_pose].rotation().Y(), tag_poses[tag_pose].rotation().Z(), \
@@ -296,6 +297,8 @@ def main():
     pose_data_bytes_ntt = NTGetRaw(ntinst, None, None, None)
     pose_data_string_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME),"", "", "")
     temp_ntt = NTGetDouble(ntinst.getDoubleTopic(TEMP_TOPIC_NAME), 0, 0, 0)
+    rio_time_ntt = NTGetDouble(ntinst.getDoubleTopic(RIO_TIME_TOPIC_NAME), 0, 0, 0)
+
 
     # Wait for NetworkTables to start
     time.sleep(0.5)
@@ -354,8 +357,8 @@ def main():
     prev_seconds = 0
     temp_sec = 30
     while True:
-        
-        start_time = time.time()
+        rio_time = rio_time_ntt.get()
+        start_time = time.process_time()
         current_seconds = start_time
         if int(current_seconds - prev_seconds) >= UPTIME_UPDATE_INTERVAL:
             prev_seconds = current_seconds
@@ -404,16 +407,16 @@ def main():
                     tags.append(tag)
         
             image_num += 1
-            image_time = time.time() - start_time
+            image_time = time.process_time() - start_time
                     
             if len(tags) > 0:
-                pose_data = pose_data_bytes(image_time, image_num, tags, tag_poses)
+                pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                 pose_data_bytes_ntt.set(pose_data)
 
             if debug_ntt.get() == True:
                 if len(tags) > 0:
                     img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
-                    pose_data_string_ntt.set(pose_data_string(image_time, image_num, tags, tag_poses))
+                    pose_data_string_ntt.set(pose_data_string(image_num, rio_time, image_time, tags, tag_poses))
                 outputStream.putFrame(img) # send to dashboard
                 if savefile_ntt.get() == True:
                     file_write(configfile_ntt.get(), threads_ntt.get(), \
