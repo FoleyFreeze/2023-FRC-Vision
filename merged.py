@@ -241,10 +241,12 @@ def nt_update(config, threads,quadDecimate, blur, refineEdges, decodeSharpening,
     configfile.set(str(config.get('VISION', CONFIG_FILE_TOPIC_NAME)))
 
 '''
-all data to send is packaged as an array of bytes, using a Python bytearray, in little-endian format:
-image time: unsigned long (4 bytes)
+all data to send is packaged as an array of bytes, using a Python bytearray, in big-endian format:
 sequence number: unsigned long (4 bytes)
+rio time: float (4 bytes)
+image time:float (4 bytes)
 type (tag = 1, cone = 2, cube = 3): unsigned char (1 byte)
+length: how many tags/cones/cubes follow
 what follows these first 3 items depends on the type:
 tag:
 number of tags detected: unsigned char (1 byte)
@@ -261,9 +263,9 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
     # get a list of tags that were detected
     # start the array with sequence number, the RIO's time, image time, and tag type
     tag_pose = 0
-    byte_array += struct.pack("<LffBB", sequence_num, rio_time, image_time, 1, len(tags))
+    byte_array += struct.pack(">LffBB", sequence_num, rio_time, image_time, 1, len(tags))
     for tag in tags:
-        byte_array += struct.pack("<Bffffff", tag.getId(), \
+        byte_array += struct.pack(">Bffffff", tag.getId(), \
             tag_poses[tag_pose].rotation().X(), tag_poses[tag_pose].rotation().Y(), tag_poses[tag_pose].rotation().Z(), \
             tag_poses[tag_pose].translation().X(), tag_poses[tag_pose].translation().Y(), tag_poses[tag_pose].translation().Z())
         tag_pose += 1
@@ -405,11 +407,10 @@ def main():
                     tag_pose = apriltag_est.estimateHomography(tag)
                     tag_poses.append(tag_pose)
                     tags.append(tag)
-        
-            image_num += 1
-            image_time = time.process_time() - start_time
                     
             if len(tags) > 0:
+                image_num += 1
+                image_time = time.process_time() - start_time
                 pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                 pose_data_bytes_ntt.set(pose_data)
 
