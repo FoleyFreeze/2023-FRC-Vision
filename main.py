@@ -138,13 +138,22 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.SERVER)
+    ntconnect = NTConnectType(NTConnectType.CLIENT)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
     else:
         ntinst.startClient4("raspberrypi910")
  
+    # Wait for NetworkTables to start
+    time.sleep(1)
+    
+    rio_time_ntt = NTGetDouble(ntinst.getDoubleTopic(RIO_TIME_TOPIC_NAME), 0, 0, 0)
+    
+    if ntconnect == NTConnectType.CLIENT:
+        while rio_time_ntt.get() == 0:
+            time.sleep(1)
+
     # Table for vision output information
     uptime_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Uptime"), 0, 0, -1)
     #debug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Debug Mode"), False, DEBUG_MODE_DEFAULT, DEBUG_MODE_DEFAULT)
@@ -163,11 +172,6 @@ def main():
     pose_data_bytes_ntt = NTGetRaw(ntinst, None, None, None)
     pose_data_string_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME),"", "", "")
     temp_ntt = NTGetDouble(ntinst.getDoubleTopic(TEMP_TOPIC_NAME), 0, 0, 0)
-    rio_time_ntt = NTGetDouble(ntinst.getDoubleTopic(RIO_TIME_TOPIC_NAME), 0, 0, 0)
-
-
-    # Wait for NetworkTables to start
-    time.sleep(0.5)
     
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
