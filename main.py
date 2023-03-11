@@ -55,7 +55,7 @@ def file_write(file, threads, decimate, blur, refine, sharpen, atdebug, decision
     parser.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decisionmargin))
     parser.set('VISION', DECIMATE_TOPIC_NAME, str(decimate))
     parser.set('VISION', CONFIG_FILE_TOPIC_NAME, str(file))
-
+    #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
     with open(file, 'w') as config:
         parser.write(config)
 
