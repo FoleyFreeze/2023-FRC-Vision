@@ -1,18 +1,26 @@
 def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
-    string = ""
-    tag_pose = 0
-    string = f'{sequence_num}, {rio_time:1.3f}, {time:1.3f}, {len(tags)}, '
+    string_header = ""
+    string_header = f'num={sequence_num} t_rio={rio_time:1.3f} t_img={time:1.3f} len={len(tags)}'
 
+    string_data_rot = f'tags={len(tags)} '
+    string_data_t = f'tags={len(tags)} '
+    tag_pose = 0
+    
     for tag in tags:
-        string += f'{tag.getId()},\
-        {math.degrees(tag_poses[tag_pose].rotation().X()):3.1f},\
-        {math.degrees(tag_poses[tag_pose].rotation().Y()):3.1f},\
-        {math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f},\
-        {(tag_poses[tag_pose].translation().X() / 100) / 2.54:4.3f},\
-        {(tag_poses[tag_pose].translation().Y() / 100) / 2.54:4.3f},\
-        {(tag_poses[tag_pose].translation().Z() / 100) / 2.54:4.3f},'
-        tag_pose += 1
-    return string
+        
+        z_in = (tag_poses[tag_pose].translation().Z() * 39.3701)
+
+        string_data_rot += f'id={tag.getId()} \
+        x_deg={math.degrees(tag_poses[tag_pose].rotation().X()):3.1f} \
+        y_deg={math.degrees(tag_poses[tag_pose].rotation().Y()):3.1f} \
+        z_deg={math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f} '
+        string_data_t += f'id={tag.getId()} \
+        x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.2f} \
+        y_in={(tag_poses[tag_pose].translation().Y() * 39.37):3.2f} \
+        z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.2f} '
+        tag_pose +=1
+    
+    return string_header, string_data_rot, string_data_t, z_in
 
 def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
     tag_pose = 0
@@ -171,9 +179,12 @@ def main():
     configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
     active_ntt = NTGetBoolean(ntinst.getBooleanTopic(ACTIVE_TOPIC_NAME), True, True, True)
     pose_data_bytes_ntt = NTGetRaw(ntinst, None, None, None)
-    pose_data_string_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME),"", "", "")
+    pose_data_string_header_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_HEADER),"", "", "")
+    pose_data_string_data_translation_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_DATA_TRANSLATION),"", "", "")
+    pose_data_string_data_rotation_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_DATA_ROTATION),"", "", "")
     temp_ntt = NTGetDouble(ntinst.getDoubleTopic(TEMP_TOPIC_NAME), 0, 0, 0)
-    
+    z_in_ntt = NTGetDouble(ntinst.getDoubleTopic(Z_IN_TOPIC_NAME), 0.0, 0.0, 0.0)
+
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
 
@@ -210,16 +221,16 @@ def main():
     
     # Capture from the first USB Camera on the system
     camera = CameraServer.startAutomaticCapture()
-    camera.setResolution(X_RES, Y_RES)
+    camera.setResolution(1280, 720)
 
     # Get a CvSink. This will capture images from the camera
     cvSink = CameraServer.getVideo()
 
     # (optional) Setup a CvSource. This will send images back to the Dashboard
-    outputStream = CameraServer.putVideo("final image", X_RES, Y_RES)
+    outputStream = CameraServer.putVideo("final image", 1280, 720)
 
     # Allocating new images is very expensive, always try to preallocate
-    img = np.zeros(shape=(X_RES, Y_RES, 3), dtype=np.uint8)
+    img = np.zeros(shape=(1280, 720, 3), dtype=np.uint8)
 
     print("Hello")
     image_num = 0
@@ -247,6 +258,7 @@ def main():
             # Tell the CvSink to grab a frame from the camera and put it
             # in the source image.  If there is an error notify the output.
             
+            t1_time = time.process_time()
             frame_time, img = cvSink.grabFrame(img)
             if frame_time == 0:
                 # Send the output the error.
@@ -271,6 +283,8 @@ def main():
                 config.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
 
             detected = detector.detect(gimg)
+            image_time = time.process_time() - t1_time
+
             tag_poses = []
             tags = []
             for tag in detected:
@@ -281,14 +295,21 @@ def main():
                     
             if len(tags) > 0:
                 image_num += 1
-                image_time = time.process_time() - frame_time
+                #image_time = time.process_time() - frame_time
                 pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                 pose_data_bytes_ntt.set(pose_data)
+                header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
+                z_in_ntt.set(z_in)
+                pose_data_string_header_ntt.set(header)
 
             if debug_ntt.get() == True:
                 if len(tags) > 0:
                     img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
-                    pose_data_string_ntt.set(pose_data_string(image_num, rio_time, image_time, tags, tag_poses))
+                    header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
+                    pose_data_string_header_ntt.set(header)
+                    pose_data_string_data_translation_ntt.set(trans_data)
+                    pose_data_string_data_rotation_ntt.set(rot_data)
+                    z_in_ntt.set(z_in)
                 outputStream.putFrame(img) # send to dashboard
                 if savefile_ntt.get() == True:
                     file_write(configfile_ntt.get(), threads_ntt.get(), \
