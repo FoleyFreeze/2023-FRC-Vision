@@ -274,7 +274,7 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.CLIENT)
+    ntconnect = NTConnectType(NTConnectType.SERVER)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
@@ -289,6 +289,7 @@ def main():
     if ntconnect == NTConnectType.CLIENT:
         while rio_time_ntt.get() == 0:
             time.sleep(1)
+            print("waiting for RIO connection")
 
     # Table for vision output information
     uptime_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Uptime"), 0, 0, -1)
@@ -364,16 +365,16 @@ def main():
     temp_sec = 30
     while True:
         rio_time = rio_time_ntt.get()
-        start_time = time.process_time()
+        start_time = time.time()
         current_seconds = start_time
-        if int(current_seconds - prev_seconds) >= UPTIME_UPDATE_INTERVAL:
+        if current_seconds - prev_seconds >= UPTIME_UPDATE_INTERVAL:
             prev_seconds = current_seconds
             seconds = seconds + 1
             temp_sec = temp_sec + 1
             uptime_ntt.set(seconds)
             print(seconds)
         
-        if int(temp_sec) >= TEMP_UPDATE_INTERVAL:
+        if temp_sec >= TEMP_UPDATE_INTERVAL:
             with open("/sys/class/thermal/thermal_zone0/temp", 'r') as f:
                 temp_ntt.set(int(f.readline()) / 1000) #converting milidegrees C to degrees C
                 temp_sec = 0
@@ -381,6 +382,7 @@ def main():
         if active_ntt.get() == True:
             # Tell the CvSink to grab a frame from the camera and put it
             # in the source image.  If there is an error notify the output.
+            
             frame_time, img = cvSink.grabFrame(img)
             if frame_time == 0:
                 # Send the output the error.
@@ -391,6 +393,7 @@ def main():
             #
             # Insert your image processing logic here!
             #
+            img = cv2.flip(img, -1)
             gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             if debug_ntt.get() == True:
@@ -414,7 +417,7 @@ def main():
                     
             if len(tags) > 0:
                 image_num += 1
-                image_time = time.process_time() - start_time
+                image_time = time.process_time() - frame_time
                 pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                 pose_data_bytes_ntt.set(pose_data)
 
