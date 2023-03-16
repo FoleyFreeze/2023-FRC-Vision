@@ -146,12 +146,14 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.SERVER)
+    ntconnect = NTConnectType(NTConnectType.CLIENT)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
     else:
+        print("connect as client")
         ntinst.startClient4("raspberrypi910")
+        ntinst.setServerTeam(910)
  
     # Wait for NetworkTables to start
     time.sleep(1)
@@ -205,7 +207,7 @@ def main():
     
     #set up pose estimation
     calib_data_path = "calib_data"
-    calib_data = np.load(f"{calib_data_path}/MultiMatrix.npz")
+    calib_data = np.load(f"{calib_data_path}/{CAMERA_CAL_FILE_NAME}")
     camMatrix = calib_data["camMatrix"]
     distCoeffs = calib_data["distCoef"]
 
@@ -218,19 +220,23 @@ def main():
     apriltag_est = robotpy_apriltag.AprilTagPoseEstimator(apriltag_est_config)
     rVector = np.zeros((3,1))
     tVector = np.zeros((3,1))
-    
+    #load camera settings set from web console
+    with open('/boot/frc.json') as f:
+        web_settings = json.load(f)
+    cam_config = web_settings['cameras'][0]
+
     # Capture from the first USB Camera on the system
     camera = CameraServer.startAutomaticCapture()
-    camera.setResolution(1280, 720)
+    camera.setResolution(cam_config['width'], cam_config['height'])
 
     # Get a CvSink. This will capture images from the camera
     cvSink = CameraServer.getVideo()
 
     # (optional) Setup a CvSource. This will send images back to the Dashboard
-    outputStream = CameraServer.putVideo("final image", 1280, 720)
+    outputStream = CameraServer.putVideo("final image", cam_config['width'], cam_config['height'])
 
     # Allocating new images is very expensive, always try to preallocate
-    img = np.zeros(shape=(1280, 720, 3), dtype=np.uint8)
+    img = np.zeros(shape=(cam_config['height'], cam_config['width'], 3), dtype=np.uint8)
 
     print("Hello")
     image_num = 0
@@ -269,7 +275,7 @@ def main():
             #
             # Insert your image processing logic here!
             #
-            img = cv2.flip(img, -1)
+            #img = cv2.flip(img, -1)
             gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             if debug_ntt.get() == True:
@@ -283,8 +289,6 @@ def main():
                 config.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
 
             detected = detector.detect(gimg)
-            image_time = time.process_time() - t1_time
-
             tag_poses = []
             tags = []
             for tag in detected:
@@ -295,7 +299,7 @@ def main():
                     
             if len(tags) > 0:
                 image_num += 1
-                #image_time = time.process_time() - frame_time
+                image_time = time.process_time() - t1_time
                 pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                 pose_data_bytes_ntt.set(pose_data)
                 header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
@@ -310,6 +314,7 @@ def main():
                     pose_data_string_data_translation_ntt.set(trans_data)
                     pose_data_string_data_rotation_ntt.set(rot_data)
                     z_in_ntt.set(z_in)
+                    NetworkTableInstance.getDefault().flush()
                 outputStream.putFrame(img) # send to dashboard
                 if savefile_ntt.get() == True:
                     file_write(configfile_ntt.get(), threads_ntt.get(), \

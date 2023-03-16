@@ -32,8 +32,8 @@ class NTGetBoolean:
         self.boolTopic.close()
 
 CHESS_BOARD_DIM = (4,3)
-X_RES = 640
-Y_RES = 480
+X_RES = 320
+Y_RES = 240
 
 ntinst = NetworkTableInstance.getDefault()
 ntinst.startServer()

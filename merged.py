@@ -13,8 +13,9 @@ import ast
 import math
 import struct
 from math import log10, floor
-X_RES = 640
-Y_RES = 480
+import json
+X_RES = 320
+Y_RES = 240
 UPTIME_UPDATE_INTERVAL = 1
 TEMP_UPDATE_INTERVAL= 30
 DEBUG_MODE_DEFAULT = False
@@ -26,6 +27,7 @@ SHARPENING_DEFAULT = 0.25
 APRILTAG_DEBUG_MODE_DEFAULT = False
 DECISION_MARGIN_DEFAULT = 125
 CONFIG_FILE_DEFAULT = "config.ini"
+CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.webcam.640.480"
 THREADS_TOPIC_NAME = "/Vision/Threads"
 DECIMATE_TOPIC_NAME = "/Vision/Decimate"
 BLUR_TOPIC_NAME = "/Vision/Blur"
@@ -36,9 +38,12 @@ DECISION_MARGIN_TOPIC_NAME = "/Vision/Decision Margin"
 CONFIG_FILE_TOPIC_NAME = "/Vision/Config File"
 ACTIVE_TOPIC_NAME = "/Vision/Active"
 POSE_DATA_RAW_TOPIC_NAME = "Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
-POSE_DATA_STRING_TOPIC_NAME ="/Vision/Pose Data String"
+POSE_DATA_STRING_TOPIC_NAME_HEADER ="/Vision/Pose Data Header"
+POSE_DATA_STRING_TOPIC_NAME_DATA_TRANSLATION ="/Vision/Pose Data Trans"
+POSE_DATA_STRING_TOPIC_NAME_DATA_ROTATION ="/Vision/Pose Data Rot"
 TEMP_TOPIC_NAME = "/Vision/Temperature"
 RIO_TIME_TOPIC_NAME = "/Vision/RIO Time"
+Z_IN_TOPIC_NAME = "/Vision/Z In"
 class NTConnectType(Enum):
     SERVER = 1
     CLIENT = 2
@@ -135,20 +140,28 @@ class NTGetRaw:
         # stop subscribing/publishing
         self.pub.close()
 def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
-    string = ""
-    tag_pose = 0
-    string = f'{sequence_num}, {rio_time:1.3f}, {time:1.3f}, {len(tags)}, '
+    string_header = ""
+    string_header = f'num={sequence_num} t_rio={rio_time:1.3f} t_img={time:1.3f} len={len(tags)}'
 
+    string_data_rot = f'tags={len(tags)} '
+    string_data_t = f'tags={len(tags)} '
+    tag_pose = 0
+    
     for tag in tags:
-        string += f'{tag.getId()},\
-        {math.degrees(tag_poses[tag_pose].rotation().X()):3.1f},\
-        {math.degrees(tag_poses[tag_pose].rotation().Y()):3.1f},\
-        {math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f},\
-        {(tag_poses[tag_pose].translation().X() / 100) / 2.54:4.3f},\
-        {(tag_poses[tag_pose].translation().Y() / 100) / 2.54:4.3f},\
-        {(tag_poses[tag_pose].translation().Z() / 100) / 2.54:4.3f},'
-        tag_pose += 1
-    return string
+        
+        z_in = (tag_poses[tag_pose].translation().Z() * 39.3701)
+
+        string_data_rot += f'id={tag.getId()} \
+        x_deg={math.degrees(tag_poses[tag_pose].rotation().X()):3.1f} \
+        y_deg={math.degrees(tag_poses[tag_pose].rotation().Y()):3.1f} \
+        z_deg={math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f} '
+        string_data_t += f'id={tag.getId()} \
+        x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.2f} \
+        y_in={(tag_poses[tag_pose].translation().Y() * 39.37):3.2f} \
+        z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.2f} '
+        tag_pose +=1
+    
+    return string_header, string_data_rot, string_data_t, z_in
 
 def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
     tag_pose = 0
@@ -274,12 +287,14 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.SERVER)
+    ntconnect = NTConnectType(NTConnectType.CLIENT)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
     else:
+        print("connect as client")
         ntinst.startClient4("raspberrypi910")
+        ntinst.setServerTeam(910)
  
     # Wait for NetworkTables to start
     time.sleep(1)
@@ -307,9 +322,12 @@ def main():
     configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
     active_ntt = NTGetBoolean(ntinst.getBooleanTopic(ACTIVE_TOPIC_NAME), True, True, True)
     pose_data_bytes_ntt = NTGetRaw(ntinst, None, None, None)
-    pose_data_string_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME),"", "", "")
+    pose_data_string_header_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_HEADER),"", "", "")
+    pose_data_string_data_translation_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_DATA_TRANSLATION),"", "", "")
+    pose_data_string_data_rotation_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_DATA_ROTATION),"", "", "")
     temp_ntt = NTGetDouble(ntinst.getDoubleTopic(TEMP_TOPIC_NAME), 0, 0, 0)
-    
+    z_in_ntt = NTGetDouble(ntinst.getDoubleTopic(Z_IN_TOPIC_NAME), 0.0, 0.0, 0.0)
+
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
 
@@ -330,7 +348,7 @@ def main():
     
     #set up pose estimation
     calib_data_path = "calib_data"
-    calib_data = np.load(f"{calib_data_path}/MultiMatrix.npz")
+    calib_data = np.load(f"{calib_data_path}/{CAMERA_CAL_FILE_NAME}")
     camMatrix = calib_data["camMatrix"]
     distCoeffs = calib_data["distCoef"]
 
@@ -343,19 +361,23 @@ def main():
     apriltag_est = robotpy_apriltag.AprilTagPoseEstimator(apriltag_est_config)
     rVector = np.zeros((3,1))
     tVector = np.zeros((3,1))
-    
+    #load camera settings set from web console
+    with open('/boot/frc.json') as f:
+        web_settings = json.load(f)
+    cam_config = web_settings['cameras'][0]
+
     # Capture from the first USB Camera on the system
     camera = CameraServer.startAutomaticCapture()
-    camera.setResolution(X_RES, Y_RES)
+    camera.setResolution(cam_config['width'], cam_config['height'])
 
     # Get a CvSink. This will capture images from the camera
     cvSink = CameraServer.getVideo()
 
     # (optional) Setup a CvSource. This will send images back to the Dashboard
-    outputStream = CameraServer.putVideo("final image", X_RES, Y_RES)
+    outputStream = CameraServer.putVideo("final image", cam_config['width'], cam_config['height'])
 
     # Allocating new images is very expensive, always try to preallocate
-    img = np.zeros(shape=(X_RES, Y_RES, 3), dtype=np.uint8)
+    img = np.zeros(shape=(cam_config['height'], cam_config['width'], 3), dtype=np.uint8)
 
     print("Hello")
     image_num = 0
@@ -383,6 +405,7 @@ def main():
             # Tell the CvSink to grab a frame from the camera and put it
             # in the source image.  If there is an error notify the output.
             
+            t1_time = time.process_time()
             frame_time, img = cvSink.grabFrame(img)
             if frame_time == 0:
                 # Send the output the error.
@@ -393,7 +416,7 @@ def main():
             #
             # Insert your image processing logic here!
             #
-            img = cv2.flip(img, -1)
+            #img = cv2.flip(img, -1)
             gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             if debug_ntt.get() == True:
@@ -417,14 +440,22 @@ def main():
                     
             if len(tags) > 0:
                 image_num += 1
-                image_time = time.process_time() - frame_time
+                image_time = time.process_time() - t1_time
                 pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                 pose_data_bytes_ntt.set(pose_data)
+                header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
+                z_in_ntt.set(z_in)
+                pose_data_string_header_ntt.set(header)
 
             if debug_ntt.get() == True:
                 if len(tags) > 0:
                     img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
-                    pose_data_string_ntt.set(pose_data_string(image_num, rio_time, image_time, tags, tag_poses))
+                    header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
+                    pose_data_string_header_ntt.set(header)
+                    pose_data_string_data_translation_ntt.set(trans_data)
+                    pose_data_string_data_rotation_ntt.set(rot_data)
+                    z_in_ntt.set(z_in)
+                    NetworkTableInstance.getDefault().flush()
                 outputStream.putFrame(img) # send to dashboard
                 if savefile_ntt.get() == True:
                     file_write(configfile_ntt.get(), threads_ntt.get(), \
