@@ -14,6 +14,7 @@ import math
 import struct
 from math import log10, floor
 import json
+from picamera2 import Picamera2
 X_RES = 320
 Y_RES = 240
 UPTIME_UPDATE_INTERVAL = 1
@@ -27,7 +28,7 @@ SHARPENING_DEFAULT = 0.25
 APRILTAG_DEBUG_MODE_DEFAULT = False
 DECISION_MARGIN_DEFAULT = 125
 CONFIG_FILE_DEFAULT = "config.ini"
-CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.webcam.640.480"
+CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.ar0234cs.global.shutter"
 THREADS_TOPIC_NAME = "/Vision/Threads"
 DECIMATE_TOPIC_NAME = "/Vision/Decimate"
 BLUR_TOPIC_NAME = "/Vision/Blur"
@@ -287,7 +288,7 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.CLIENT)
+    ntconnect = NTConnectType(NTConnectType.SERVER)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
@@ -361,23 +362,35 @@ def main():
     apriltag_est = robotpy_apriltag.AprilTagPoseEstimator(apriltag_est_config)
     rVector = np.zeros((3,1))
     tVector = np.zeros((3,1))
+    
     #load camera settings set from web console
     with open('/boot/frc.json') as f:
         web_settings = json.load(f)
     cam_config = web_settings['cameras'][0]
 
     # Capture from the first USB Camera on the system
-    camera = CameraServer.startAutomaticCapture()
-    camera.setResolution(cam_config['width'], cam_config['height'])
+    #camera = CameraServer.startAutomaticCapture()
 
+    w = cam_config['width']
+    h = cam_config['height']
+    #camera.setResolution(w, h)
+    fps = cam_config['fps']
     # Get a CvSink. This will capture images from the camera
-    cvSink = CameraServer.getVideo()
+    #cvSink = CameraServer.getVideo()
 
+    picam2 = Picamera2()
+    picam2_config = picam2.create_still_configuration({"size": (w, h)})
+    picam2.still_configuration.controls.FrameRate = fps
+    print(picam2_config["main"])
+    picam2.configure(picam2_config)
+    picam2.start()
+
+    
     # (optional) Setup a CvSource. This will send images back to the Dashboard
     outputStream = CameraServer.putVideo("final image", cam_config['width'], cam_config['height'])
 
     # Allocating new images is very expensive, always try to preallocate
-    img = np.zeros(shape=(cam_config['height'], cam_config['width'], 3), dtype=np.uint8)
+    #img = np.zeros(shape=(cam_config['height'], cam_config['width'], 3), dtype=np.uint8)
 
     print("Hello")
     image_num = 0
@@ -394,7 +407,7 @@ def main():
             seconds = seconds + 1
             temp_sec = temp_sec + 1
             uptime_ntt.set(seconds)
-            print(seconds)
+            print(f'w={w} h={h} sec={seconds}')
         
         if temp_sec >= TEMP_UPDATE_INTERVAL:
             with open("/sys/class/thermal/thermal_zone0/temp", 'r') as f:
@@ -406,13 +419,15 @@ def main():
             # in the source image.  If there is an error notify the output.
             
             t1_time = time.process_time()
-            frame_time, img = cvSink.grabFrame(img)
+            #frame_time, img = cvSink.grabFrame(img)
+            img = picam2.capture_array()
+            '''
             if frame_time == 0:
                 # Send the output the error.
                 outputStream.notifyError(cvSink.getError())
                 # skip the rest of the current iteration
                 continue
-            
+            '''
             #
             # Insert your image processing logic here!
             #
@@ -433,6 +448,7 @@ def main():
             tag_poses = []
             tags = []
             for tag in detected:
+                #print(f'num={len(tags)} DM={tag.getDecisionMargin()}')
                 if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
                     tag_pose = apriltag_est.estimateHomography(tag)
                     tag_poses.append(tag_pose)

@@ -232,12 +232,13 @@ def main():
     w = cam_config['width']
     h = cam_config['height']
     #camera.setResolution(w, h)
-
+    fps = cam_config['fps']
     # Get a CvSink. This will capture images from the camera
     #cvSink = CameraServer.getVideo()
 
     picam2 = Picamera2()
     picam2_config = picam2.create_still_configuration({"size": (w, h)})
+    picam2.still_configuration.controls.FrameRate = fps
     print(picam2_config["main"])
     picam2.configure(picam2_config)
     picam2.start()
