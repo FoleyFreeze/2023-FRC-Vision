@@ -5,6 +5,8 @@ from cscore import CameraServer
 import ntcore
 from ntcore import NetworkTableInstance
 import time
+from picamera2 import Picamera2
+import json
 
 class NTGetBoolean:
     def __init__(self, boolTopic: ntcore.BooleanTopic, init, default, failsafe):
@@ -32,8 +34,6 @@ class NTGetBoolean:
         self.boolTopic.close()
 
 CHESS_BOARD_DIM = (4,3)
-X_RES = 320
-Y_RES = 240
 
 ntinst = NetworkTableInstance.getDefault()
 ntinst.startServer()
@@ -41,11 +41,27 @@ savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save Image"), False,
 quit_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save Quit"), False, False, False)
 time.sleep(0.5)
 
-camera = CameraServer.startAutomaticCapture()
+'''camera = CameraServer.startAutomaticCapture()
 camera.setResolution(X_RES, Y_RES)
-cvSink = CameraServer.getVideo()
-outputStream = CameraServer.putVideo("final image", X_RES, Y_RES)
-img = np.zeros(shape=(X_RES, Y_RES, 3), dtype=np.uint8)
+cvSink = CameraServer.getVideo()'''
+
+#load camera settings set from web console
+with open('/boot/frc.json') as f:
+    web_settings = json.load(f)
+cam_config = web_settings['cameras'][0]
+
+w = cam_config['width']
+h = cam_config['height']    
+picam2 = Picamera2()
+picam2_config = picam2.create_still_configuration({"size": (w, h)})
+picam2.still_configuration.controls.FrameRate = cam_config['fps']
+
+print(picam2_config["main"])
+picam2.configure(picam2_config)
+picam2.start()
+
+outputStream = CameraServer.putVideo("final image", w, h)
+#img = np.zeros(shape=(X_RES, Y_RES, 3), dtype=np.uint8)
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 n = 0  # image_counter
 
@@ -69,12 +85,12 @@ def detect_checker_board(image, grayImage, criteria, boardDimension):
     return image, ret
 
 while True:
-    frame_time, img = cvSink.grabFrame(img)
-    if frame_time == 0:
+    img = picam2.capture_array()
+    '''if frame_time == 0:
         # Send the output the error.
         outputStream.notifyError(cvSink.getError())
         # skip the rest of the current iteration
-        continue
+        continue'''
    
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     
