@@ -54,11 +54,12 @@ w = cam_config['width']
 h = cam_config['height']    
 picam2 = Picamera2()
 picam2_config = picam2.create_still_configuration({"size": (w, h)})
-picam2.still_configuration.controls.FrameRate = cam_config['fps']
+#picam2.still_configuration.controls.FrameRate = cam_config['fps']
 
 print(picam2_config["main"])
 picam2.configure(picam2_config)
 picam2.start()
+time.sleep(3)
 
 outputStream = CameraServer.putVideo("final image", w, h)
 #img = np.zeros(shape=(X_RES, Y_RES, 3), dtype=np.uint8)
@@ -91,7 +92,7 @@ while True:
         outputStream.notifyError(cvSink.getError())
         # skip the rest of the current iteration
         continue'''
-   
+    img = cv.flip(img, -1)
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     
     image, board_detected = detect_checker_board(img, gray, criteria, CHESS_BOARD_DIM)
