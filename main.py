@@ -8,7 +8,7 @@ def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
     
     for tag in tags:
         
-        z_in = (tag_poses[tag_pose].translation().Z() * 39.3701)
+        z_in = (tag_poses[tag_pose].translation().Z() * 39.3701) # divide by 4.5 for large checkerboard
 
         string_data_rot += f'id={tag.getId()} \
         x_deg={math.degrees(tag_poses[tag_pose].rotation().X()):3.1f} \
@@ -238,7 +238,7 @@ def main():
 
     picam2 = Picamera2()
     picam2_config = picam2.create_still_configuration({"size": (w, h)})
-    picam2.still_configuration.controls.FrameRate = fps
+    #picam2.still_configuration.controls.FrameRate = fps
     print(picam2_config["main"])
     picam2.configure(picam2_config)
     picam2.start()
@@ -289,9 +289,9 @@ def main():
             #
             # Insert your image processing logic here!
             #
-            #img = cv2.flip(img, -1)
+            img = cv2.flip(img, -1)
             gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
+            
             if debug_ntt.get() == True:
                 detectorConfig.numThreads = int(threads_ntt.get())
                 detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
