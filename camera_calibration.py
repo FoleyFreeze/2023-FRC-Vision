@@ -4,10 +4,12 @@ import numpy as np
 from cscore import CameraServer
 import time
 # Checker board size
+#CHESS_BOARD_DIM = (10,7)
 CHESS_BOARD_DIM = (4,3)
 
 # The size of Square in the checker board.
 SQUARE_SIZE = 0.14318 # meters
+#SQUARE_SIZE = 0.95 # inches
 
 # termination criteria
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -41,26 +43,33 @@ img_points_2D = []  # 2d points in image plane.
 image_dir_path = "images"
 
 files = os.listdir(image_dir_path)
+valid = 0
 for file in files:
     print(file)
     imagePath = os.path.join(image_dir_path, file)
-    # print(imagePath)
 
     image = cv.imread(imagePath)
     grayScale = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    ret, corners = cv.findChessboardCorners(image, CHESS_BOARD_DIM, None)
+    #ret, corners = cv.findChessboardCorners(grayScale, CHESS_BOARD_DIM, cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE)
+    ret, corners = cv.findChessboardCornersSB(grayScale, CHESS_BOARD_DIM, flags=(cv.CALIB_CB_ACCURACY + cv.CALIB_CB_EXHAUSTIVE))
     if ret == True:
+        print(f'image {imagePath} is valid')
         obj_points_3D.append(obj_3D)
         corners2 = cv.cornerSubPix(grayScale, corners, (3, 3), (-1, -1), criteria)
         img_points_2D.append(corners2)
+        valid += 1
+        #img = cv.drawChessboardCorners(image, CHESS_BOARD_DIM, corners2, ret)
 
-        img = cv.drawChessboardCorners(image, CHESS_BOARD_DIM, corners2, ret)
+#cv.destroyAllWindows()
+h, w = image.shape[:2]
+print(w,h)
+if valid > 0:
+    print(f'num valid images found={valid}')
+    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(
+        obj_points_3D, img_points_2D, grayScale.shape[::-1], None, None)
+else:
+    print("No valid images found")
 
-cv.destroyAllWindows()
-# h, w = image.shape[:2]
-ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(
-    obj_points_3D, img_points_2D, grayScale.shape[::-1], None, None
-)
 print("calibrated")
 
 print("duming the data into one files using numpy ")
