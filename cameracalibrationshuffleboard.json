@@ -886,7 +886,7 @@
               "_glyph": 148,
               "_showGlyph": false,
               "Crosshair/Show crosshair": false,
-              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Crosshair/Crosshair color": "#00FF00FF",
               "Controls/Show controls": true,
               "Controls/Rotation": "NONE",
               "compression": -1.0,
@@ -1044,6 +1044,22 @@
               "Slider Settings/Block increment": 1.0,
               "Visuals/Display value": true
             }
+          },
+          "8,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Simple Dial",
+              "_source0": "network_table:///Vision/Z In",
+              "_title": "Vision/Z In",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Range/Min": 0.0,
+              "Range/Max": 100.0,
+              "Visuals/Show value": true
+            }
           }
         }
       }
@@ -1059,10 +1075,10 @@
         "vgap": 16.0,
         "titleType": 0,
         "tiles": {
-          "4,0": {
+          "0,0": {
             "size": [
-              3,
-              2
+              8,
+              4
             ],
             "content": {
               "_type": "Camera Stream",
@@ -1070,7 +1086,7 @@
               "_title": "final image",
               "_glyph": 148,
               "_showGlyph": false,
-              "Crosshair/Show crosshair": true,
+              "Crosshair/Show crosshair": false,
               "Crosshair/Crosshair color": "#FFFFFFFF",
               "Controls/Show controls": true,
               "Controls/Rotation": "NONE",
@@ -1080,7 +1096,7 @@
               "imageHeight": 0
             }
           },
-          "4,2": {
+          "8,3": {
             "size": [
               1,
               1
@@ -1093,7 +1109,7 @@
               "_showGlyph": false
             }
           },
-          "5,2": {
+          "8,2": {
             "size": [
               1,
               1
@@ -1111,9 +1127,9 @@
     }
   ],
   "windowGeometry": {
-    "x": -8.0,
-    "y": -8.0,
-    "width": 1382.0,
-    "height": 744.0
+    "x": -6.0,
+    "y": 1.0,
+    "width": 1378.0,
+    "height": 733.0
   }
 }
