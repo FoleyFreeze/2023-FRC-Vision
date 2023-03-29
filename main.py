@@ -146,7 +146,7 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.SERVER)
+    ntconnect = NTConnectType(NTConnectType.CLIENT)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
@@ -305,8 +305,9 @@ def main():
             detected = detector.detect(gimg)
             tag_poses = []
             tags = []
+
             for tag in detected:
-                #print(f'num={len(tags)} DM={tag.getDecisionMargin()}')
+                #print(f'id={tag.getId()} DM={tag.getDecisionMargin()}')
                 if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
                     tag_pose = apriltag_est.estimateHomography(tag)
                     tag_poses.append(tag_pose)
