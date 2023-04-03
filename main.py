@@ -583,8 +583,8 @@ def main():
                 yellow_low = np.array([cone_min_h, cone_min_s, cone_min_v])
                 yellow_high = np.array([cone_max_h, cone_max_s, cone_max_v])
                 img_mask = cv2.inRange(img_HSV, yellow_low, yellow_high)
-                valid = 0
-                white_pxs = 999999
+                valid = 0 # valid = 1 => found a cone after looking at everything in image; value = 0 => didn't find a cone 
+                white_pxs = 999999 # number of pixels found in upper left corner of bounding rect around a cone
                 
                 yellow, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -626,9 +626,6 @@ def main():
                                 if white_pxs < 10:
                                     valid += 1
                                     #print(f'a={cv2.contourArea(y)}')
-                                    #leftmost = tuple(y[y[:,:,0].argmin()][0])
-                                    #rightmost = tuple(y[y[:,:,0].argmax()][0])
-                                    #bottommost = tuple(y[y[:,:,1].argmax()][0])
                                     center_x = r_x + int(r_w / 2)
                                     center_y = r_y + int(r_h / 2)
                                     distance = cone_regress_distance(center_x) # get distance using y location
@@ -644,9 +641,6 @@ def main():
                                         txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
                                         cone_pose_data_string_header_ntt.set(txt)
                                         cv2.drawContours(img, [y], -1, (0,0,255), 3)
-                                        #cv2.circle(img,leftmost, 4, (0,255,0), -1)
-                                        #cv2.circle(img,rightmost, 4, (0,255,0), -1)
-                                        #cv2.circle(img,bottommost, 4, (0,255,0), -1)
                                         cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
                                         cv2.rectangle(img,(r_x, r_y), (r_x + int(r_w * 0.15), r_y + int(r_h * 0.30)), (0,255,0), 3) # upper left corner
                                         cv2.line(img, (r_x, r_y + int(r_y * TOP_LINE_DIST_FROM_TOP)), (r_x + r_w, r_y + int(r_y * TOP_LINE_DIST_FROM_TOP)), (255, 0 , 0), 3)
