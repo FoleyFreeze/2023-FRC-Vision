@@ -687,8 +687,8 @@ def main():
                         center_x = r_x + int(r_w / 2)
                         center_y = r_y + int(r_h / 2)
                         print(f' x={center_x} y={center_y}')
-                        distance = cube_regress_distance(center_x) # get distance using y location
-                        angle = cube_regress_angle(center_y) # get angle using x location
+                        distance = cube_regress_distance(center_x) # get distance (inches) using y location 
+                        angle = cube_regress_angle(center_y) # get angle (degrees) using x location
                         
                         image_num += 1
                         image_time = time.process_time() - t1_time
