@@ -1,11 +1,11 @@
 class NTGetRaw:
-    def __init__(self, ntinst, init, default, failsafe):
+    def __init__(self, ntinst, topicname, init, default, failsafe):
         self.init = init
         self.default = default
         self.failsafe = failsafe
         self.table = ntinst.getTable("/Vision")
 
-        self.pub = self.table.getRawTopic(POSE_DATA_RAW_TOPIC_NAME).publish("raw")
+        self.pub = self.table.getRawTopic(topicname).publish("raw")
 
     def set(self, raw):
         self.pub.set(raw)
