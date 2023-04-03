@@ -15,6 +15,7 @@ import struct
 from math import log10, floor
 import json
 from picamera2 import Picamera2
+from libcamera import controls
 X_RES = 320
 Y_RES = 240
 UPTIME_UPDATE_INTERVAL = 1
@@ -27,9 +28,8 @@ REFINE_EDGES_DEFAULT = True
 SHARPENING_DEFAULT = 0.25
 APRILTAG_DEBUG_MODE_DEFAULT = False
 DECISION_MARGIN_DEFAULT = 125
-CONE_MIN_AREA = 15
-CONFIG_FILE_DEFAULT = "config.ini"
-CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.PiGS.320.240"
+CONE_MIN_AREA = 350
+CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.PiGS.320.240" # "MultiMatrix.npz.webcam.320.240" # "MultiMatrix.npz.webcam.640.480"
 THREADS_TOPIC_NAME = "/Vision/Threads"
 DECIMATE_TOPIC_NAME = "/Vision/Decimate"
 BLUR_TOPIC_NAME = "/Vision/Blur"
@@ -37,15 +37,55 @@ REFINE_EDGES_TOPIC_NAME = "/Vision/Edge Refine"
 SHARPENING_TOPIC_NAME = "/Vision/Sharpening"
 APRILTAG_DEBUG_MODE_TOPIC_NAME = "/Vision/April Tag Debug"
 DECISION_MARGIN_TOPIC_NAME = "/Vision/Decision Margin"
-CONFIG_FILE_TOPIC_NAME = "/Vision/Config File"
+TAG_CONFIG_FILE_TOPIC_NAME = "/Vision/Tag Config File"
 ACTIVE_TOPIC_NAME = "/Vision/Active"
-POSE_DATA_RAW_TOPIC_NAME = "Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
+POSE_DATA_RAW_TOPIC_NAME = "Tag Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
+CONE_POSE_DATA_RAW_TOPIC_NAME = "Cone Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
+CUBE_POSE_DATA_RAW_TOPIC_NAME = "Cube Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
 POSE_DATA_STRING_TOPIC_NAME_HEADER ="/Vision/Pose Data Header"
+CONE_POSE_DATA_STRING_TOPIC_NAME_HEADER = "/Vision/Cone Pose Data Header"
+CUBE_POSE_DATA_STRING_TOPIC_NAME_HEADER = "/Vision/Cube Pose Data Header"
 POSE_DATA_STRING_TOPIC_NAME_DATA_TRANSLATION ="/Vision/Pose Data Trans"
 POSE_DATA_STRING_TOPIC_NAME_DATA_ROTATION ="/Vision/Pose Data Rot"
 TEMP_TOPIC_NAME = "/Vision/Temperature"
 RIO_TIME_TOPIC_NAME = "/Vision/RIO Time"
 Z_IN_TOPIC_NAME = "/Vision/Z In"
+CONE_ENABLE_TOPIC_NAME = "/Vision/Cone Enable"
+CONE_MIN_HUE_TOPIC_NAME = "/Vision/Cone Min Hue"
+CONE_MIN_SAT_TOPIC_NAME = "/Vision/Cone Min Sat"
+CONE_MIN_VAL_TOPIC_NAME = "/Vision/Cone Min Val"
+CONE_MAX_HUE_TOPIC_NAME = "/Vision/Cone Max Hue"
+CONE_MAX_SAT_TOPIC_NAME = "/Vision/Cone Max Sat"
+CONE_MAX_VAL_TOPIC_NAME = "/Vision/Cone Max Val"
+CUBE_MIN_HUE_TOPIC_NAME = "/Vision/Cube Min Hue"
+CUBE_MIN_SAT_TOPIC_NAME = "/Vision/Cube Min Sat"
+CUBE_MIN_VAL_TOPIC_NAME = "/Vision/Cube Min Val"
+CUBE_MAX_HUE_TOPIC_NAME = "/Vision/Cube Max Hue"
+CUBE_MAX_SAT_TOPIC_NAME = "/Vision/Cube Max Sat"
+CUBE_MAX_VAL_TOPIC_NAME = "/Vision/Cube Max Val"
+CONE_CONFIG_FILE_TOPIC_NAME = "/Vision/Cone Config File"
+CUBE_CONFIG_FILE_TOPIC_NAME = "/Vision/Cube Config File"
+CONE_CONFIG_FILE_DEFAULT = "cone_config.ini"
+CUBE_CONFIG_FILE_DEFAULT = "cube_config.ini"
+TAG_CONFIG_FILE_DEFAULT = "tag_config.ini"
+CUBE_MIN_HUE = 0
+CUBE_MIN_SAT = 0
+CUBE_MIN_VAL = 0
+CUBE_MAX_HUE = 179
+CUBE_MAX_SAT = 255
+CUBE_MAX_VAL = 255
+CONE_MIN_HUE = 0
+CONE_MIN_SAT = 0
+CONE_MIN_VAL = 0
+CONE_MAX_HUE = 179
+CONE_MAX_SAT = 255
+CONE_MAX_VAL = 255
+TAG_ENABLE_TOPIC_NAME = "/Vision/Tag Enable"
+CUBE_ENABLE_TOPIC_NAME = "/Vision/Cube Enable"
+CUBE_MIN_AREA = 275
+TOP_LINE_DIST_FROM_TOP = 0.15
+BOTTOM_LINE_DIST_FROM_TOP = 0.7
+
 class NTConnectType(Enum):
     SERVER = 1
     CLIENT = 2
@@ -123,13 +163,13 @@ class NTGetDouble:
         # stop subscribing/publishing
         self.dblTopic.close()
 class NTGetRaw:
-    def __init__(self, ntinst, init, default, failsafe):
+    def __init__(self, ntinst, topicname, init, default, failsafe):
         self.init = init
         self.default = default
         self.failsafe = failsafe
         self.table = ntinst.getTable("/Vision")
 
-        self.pub = self.table.getRawTopic(POSE_DATA_RAW_TOPIC_NAME).publish("raw")
+        self.pub = self.table.getRawTopic(topicname).publish("raw")
 
     def set(self, raw):
         self.pub.set(raw)
@@ -141,6 +181,31 @@ class NTGetRaw:
     def close(self):
         # stop subscribing/publishing
         self.pub.close()
+class ColorConfig:
+    def __init__(self) -> None:
+        pass
+    
+    def set(self, min_hue, min_sat, min_value, max_hue, max_sat, max_value ):
+        self.min_hue = min_hue
+        self.min_sat = min_sat
+        self.min_value = min_value
+        self.max_hue = max_hue
+        self.max_sat = max_sat
+        self.max_value = max_value
+        
+
+def cone_regress_distance(y):
+    return 0.0
+
+def cone_regress_angle(x):
+    return 0.0
+
+def cube_regress_distance(y):
+    return 0.0
+
+def cube_regress_angle(x):
+    return 0.0
+
 def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
     string_header = ""
     string_header = f'num={sequence_num} t_rio={rio_time:1.3f} t_img={time:1.3f} len={len(tags)}'
@@ -164,6 +229,12 @@ def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
         tag_pose +=1
     
     return string_header, string_data_rot, string_data_t, z_in
+
+def piece_pose_data_string(sequence_num, rio_time, time, dist, angle):
+    string_header = f'num={sequence_num} t_rio={rio_time:1.3f} t_img={time:1.3f} z_in={dist} y_deg={angle}'
+    
+    return string_header
+
 
 def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
     tag_pose = 0
@@ -193,7 +264,15 @@ def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
         cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
     return img
 
-def file_write(file, threads, decimate, blur, refine, sharpen, atdebug, decisionmargin):
+def file_write_tags(file, 
+               threads,
+                decimate, 
+                blur, 
+                refine, 
+                sharpen, 
+                atdebug, 
+                decisionmargin,
+                ):
 
     parser = configparser.ConfigParser()
 
@@ -205,24 +284,74 @@ def file_write(file, threads, decimate, blur, refine, sharpen, atdebug, decision
     parser.set('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME, str(atdebug))
     parser.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decisionmargin))
     parser.set('VISION', DECIMATE_TOPIC_NAME, str(decimate))
-    parser.set('VISION', CONFIG_FILE_TOPIC_NAME, str(file))
+    parser.set('VISION', TAG_CONFIG_FILE_TOPIC_NAME, str(file))
+    
     #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
     with open(file, 'w') as config:
         parser.write(config)
 
-    with open('Config_file_name_holder_file', 'w') as container:
-        container.write(file)
+def file_write_cones(file,
+                min_h,
+                min_s,
+                min_v,
+                max_h,
+                max_s,
+                max_v):
 
-def file_read(parser, configfile_failure_ntt):
-    container_exists = os.path.isfile('Config_file_name_holder_file') #normal file read case
-    if container_exists == True:
-        container = open('Config_file_name_holder_file', 'r')
-        config_file = container.readline()
-        container.close()
-        config_exists = os.path.isfile(config_file)
-        if config_exists == True:
-            parser.read(config_file)
-            configfile_failure_ntt.set(False) #if it works mark no error
+    parser = configparser.ConfigParser()
+
+    parser.add_section('VISION')
+    parser.set('VISION', CONE_CONFIG_FILE_TOPIC_NAME, str(file))
+    parser.set('VISION', CONE_MIN_HUE_TOPIC_NAME, str(int(min_h)))
+    parser.set('VISION', CONE_MIN_SAT_TOPIC_NAME, str(int(min_s)))
+    parser.set('VISION', CONE_MIN_VAL_TOPIC_NAME, str(int(min_v)))
+    parser.set('VISION', CONE_MAX_HUE_TOPIC_NAME, str(int(max_h)))
+    parser.set('VISION', CONE_MAX_SAT_TOPIC_NAME, str(int(max_s)))
+    parser.set('VISION', CONE_MAX_VAL_TOPIC_NAME, str(int(max_v)))
+    
+    #print(f'file={file} mh={str(min_h)} ms={str(min_s)} mv={str(min_v)} xh={str(max_h)} xs={str(max_s)} xv={str(max_v)}')
+
+    #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
+    with open(file, 'w') as config:
+        parser.write(config)
+
+    print('write')
+    print({'VISION': dict(parser['VISION'])})
+
+def file_write_cubes(file,
+                min_h,
+                min_s,
+                min_v,
+                max_h,
+                max_s,
+                max_v):
+
+    parser = configparser.ConfigParser()
+
+    parser.add_section('VISION')
+    parser.set('VISION', CUBE_CONFIG_FILE_TOPIC_NAME, str(file))
+    parser.set('VISION', CUBE_MIN_HUE_TOPIC_NAME, str(int(min_h)))
+    parser.set('VISION', CUBE_MIN_SAT_TOPIC_NAME, str(int(min_s)))
+    parser.set('VISION', CUBE_MIN_VAL_TOPIC_NAME, str(int(min_v)))
+    parser.set('VISION', CUBE_MAX_HUE_TOPIC_NAME, str(int(max_h)))
+    parser.set('VISION', CUBE_MAX_SAT_TOPIC_NAME, str(int(max_s)))
+    parser.set('VISION', CUBE_MAX_VAL_TOPIC_NAME, str(int(max_v)))
+    
+    #print(f'file={file} mh={str(min_h)} ms={str(min_s)} mv={str(min_v)} xh={str(max_h)} xs={str(max_s)} xv={str(max_v)}')
+
+    #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
+    with open(file, 'w') as config:
+        parser.write(config)
+
+    print('write')
+    print({'VISION': dict(parser['VISION'])})
+
+
+def file_read_tag(parser, configfile_failure_ntt):
+    config_exists = os.path.isfile(TAG_CONFIG_FILE_DEFAULT)
+    if config_exists == True:
+        parser.read(TAG_CONFIG_FILE_DEFAULT)
+        configfile_failure_ntt.set(False) #if it works mark no error
     else: # re-create config and container file to default
         configfile_failure_ntt.set(True) # set error for config file
 
@@ -234,16 +363,72 @@ def file_read(parser, configfile_failure_ntt):
         parser.set('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME, str(APRILTAG_DEBUG_MODE_DEFAULT))
         parser.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(DECISION_MARGIN_DEFAULT))
         parser.set('VISION', DECIMATE_TOPIC_NAME, str(DECIMATE_DEFAULT))
-        parser.set('VISION', CONFIG_FILE_TOPIC_NAME, str(CONFIG_FILE_DEFAULT))
+        parser.set('VISION', TAG_CONFIG_FILE_TOPIC_NAME, str(TAG_CONFIG_FILE_DEFAULT))
 
-        with open("/home/pi/" + CONFIG_FILE_DEFAULT, 'w') as config:
+        with open("/home/pi/" + TAG_CONFIG_FILE_DEFAULT, 'w') as config:
             parser.write(config)
+        
+        configfile_failure_ntt.set(True) # recreated config file
 
-        with open("/home/pi/" + 'Config_file_name_holder_file', 'w') as container:
-            container.write(str(CONFIG_FILE_DEFAULT))
-    
-def nt_update(config, threads,quadDecimate, blur, refineEdges, decodeSharpening, \
-     ATDebug, decision, configfile):
+def file_read_cone(parser, configfile_failure_ntt):
+    config_exists = os.path.isfile(CONE_CONFIG_FILE_DEFAULT)
+    if config_exists == True:
+        parser.read(CONE_CONFIG_FILE_DEFAULT)
+
+        configfile_failure_ntt.set(False) #if it works mark no error
+        print('read cone')
+        print({'VISION': dict(parser['VISION'])})
+    else: # re-create config and container file to default
+        configfile_failure_ntt.set(True) # set error for config file
+
+        parser.add_section('VISION')
+        
+        parser.set('VISION', CONE_CONFIG_FILE_TOPIC_NAME, str(CONE_CONFIG_FILE_DEFAULT))
+        parser.set('VISION', CONE_MIN_HUE_TOPIC_NAME, str(CONE_MIN_HUE))
+        parser.set('VISION', CONE_MIN_SAT_TOPIC_NAME, str(CONE_MIN_SAT))
+        parser.set('VISION', CONE_MIN_VAL_TOPIC_NAME, str(CONE_MIN_VAL))
+        parser.set('VISION', CONE_MAX_HUE_TOPIC_NAME, str(CONE_MAX_HUE))
+        parser.set('VISION', CONE_MAX_SAT_TOPIC_NAME, str(CONE_MAX_SAT))
+        parser.set('VISION', CONE_MAX_VAL_TOPIC_NAME, str(CONE_MAX_VAL))
+
+        with open("/home/pi/" + CONE_CONFIG_FILE_DEFAULT, 'w') as config:
+            parser.write(config)
+        configfile_failure_ntt.set(False) # config file recreated
+
+def file_read_cube(parser, configfile_failure_ntt):
+    config_exists = os.path.isfile(CUBE_CONFIG_FILE_DEFAULT)
+    if config_exists == True:
+        parser.read(CUBE_CONFIG_FILE_DEFAULT)
+
+        configfile_failure_ntt.set(False) #if it works mark no error
+        print('read cube')
+        print({'VISION': dict(parser['VISION'])})
+    else: # re-create config and container file to default
+        configfile_failure_ntt.set(True) # set error for config file
+
+        parser.add_section('VISION')
+        
+        parser.set('VISION', CUBE_CONFIG_FILE_TOPIC_NAME, str(CUBE_CONFIG_FILE_DEFAULT))
+        parser.set('VISION', CUBE_MIN_HUE_TOPIC_NAME, str(CUBE_MIN_HUE))
+        parser.set('VISION', CUBE_MIN_SAT_TOPIC_NAME, str(CUBE_MIN_SAT))
+        parser.set('VISION', CUBE_MIN_VAL_TOPIC_NAME, str(CUBE_MIN_VAL))
+        parser.set('VISION', CUBE_MAX_HUE_TOPIC_NAME, str(CUBE_MAX_HUE))
+        parser.set('VISION', CUBE_MAX_SAT_TOPIC_NAME, str(CUBE_MAX_SAT))
+        parser.set('VISION', CUBE_MAX_VAL_TOPIC_NAME, str(CUBE_MAX_VAL))
+        with open("/home/pi/" + CUBE_CONFIG_FILE_DEFAULT, 'w') as config:
+            parser.write(config)
+        configfile_failure_ntt.set(False) # config file recreated
+
+def nt_update_tags(config,
+              threads,
+              quadDecimate,
+              blur,
+              refineEdges,
+              decodeSharpening,
+              ATDebug,
+              decision,
+              configfile
+            ):
     # sync the stuff in the file with matching values in the file
 
     threads.set(float(config.get('VISION', THREADS_TOPIC_NAME)))
@@ -253,7 +438,44 @@ def nt_update(config, threads,quadDecimate, blur, refineEdges, decodeSharpening,
     decodeSharpening.set(float(config.get('VISION', SHARPENING_TOPIC_NAME)))
     ATDebug.set(ast.literal_eval(config.get('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME)))
     decision.set(float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)))
-    configfile.set(str(config.get('VISION', CONFIG_FILE_TOPIC_NAME)))
+    configfile.set(str(config.get('VISION', TAG_CONFIG_FILE_TOPIC_NAME)))
+
+def nt_update_cubes(config,
+              configfile,
+              min_h,
+              min_s,
+              min_v,
+              max_h,
+              max_s,
+              max_v):
+    # sync the stuff in the file with matching values in the file
+
+    configfile.set(str(config.get('VISION', CUBE_CONFIG_FILE_TOPIC_NAME)))
+    min_h.set(float(config.get('VISION', CUBE_MIN_HUE_TOPIC_NAME)))
+    min_s.set(float(config.get('VISION', CUBE_MIN_SAT_TOPIC_NAME)))
+    min_v.set(float(config.get('VISION', CUBE_MIN_VAL_TOPIC_NAME)))
+    max_h.set(float(config.get('VISION', CUBE_MAX_HUE_TOPIC_NAME)))
+    max_s.set(float(config.get('VISION', CUBE_MAX_SAT_TOPIC_NAME)))
+    max_v.set(float(config.get('VISION', CUBE_MAX_VAL_TOPIC_NAME)))
+
+def nt_update_cones(config,
+                configfile,
+                min_h,
+                min_s,
+                min_v,
+                max_h,
+                max_s,
+                max_v):
+    # sync the stuff in the file with matching values in the file
+
+    configfile.set(str(config.get('VISION', CONE_CONFIG_FILE_TOPIC_NAME)))
+    min_h.set(float(config.get('VISION', CONE_MIN_HUE_TOPIC_NAME)))
+    min_s.set(float(config.get('VISION', CONE_MIN_SAT_TOPIC_NAME)))
+    min_v.set(float(config.get('VISION', CONE_MIN_VAL_TOPIC_NAME)))
+    max_h.set(float(config.get('VISION', CONE_MAX_HUE_TOPIC_NAME)))
+    max_s.set(float(config.get('VISION', CONE_MAX_SAT_TOPIC_NAME)))
+    max_v.set(float(config.get('VISION', CONE_MAX_VAL_TOPIC_NAME)))
+
 
 '''
 all data to send is packaged as an array of bytes, using a Python bytearray, in big-endian format:
@@ -286,6 +508,15 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
         tag_pose += 1
     return byte_array
 
+def piece_pose_data_bytes(sequence_num, rio_time, image_time, type, dist, angle):
+    byte_array = bytearray()
+    # report a single cone, tag type 2 is cone
+    # start the array with sequence number, the RIO's time, image time, and tag type
+    byte_array += struct.pack(">LffBB", sequence_num, rio_time, image_time, type, 1)
+    byte_array += struct.pack(">Bffffff", 2, 0, angle, 0, 0, 0, dist) # rotation y is angle, translation z is distance
+    return byte_array
+
+
 def main():
     
     # start NetworkTables
@@ -311,7 +542,7 @@ def main():
     # Table for vision output information
     uptime_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Uptime"), 0, 0, -1)
     #debug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Debug Mode"), False, DEBUG_MODE_DEFAULT, DEBUG_MODE_DEFAULT)
-    debug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Debug Mode"), True, True, True)
+    debug_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Debug Mode"), False, False, False)
     threads_ntt = NTGetDouble(ntinst.getDoubleTopic(THREADS_TOPIC_NAME),THREADS_DEFAULT, THREADS_DEFAULT, THREADS_DEFAULT)
     quadDecimate_ntt = NTGetDouble(ntinst.getDoubleTopic(DECIMATE_TOPIC_NAME),DECIMATE_DEFAULT, DECIMATE_DEFAULT, DECIMATE_DEFAULT)
     blur_ntt = NTGetDouble(ntinst.getDoubleTopic(BLUR_TOPIC_NAME),BLUR_DEFAULT, BLUR_DEFAULT, BLUR_DEFAULT) 
@@ -319,35 +550,80 @@ def main():
     decodeSharpening_ntt = NTGetDouble(ntinst.getDoubleTopic(SHARPENING_TOPIC_NAME), SHARPENING_DEFAULT, SHARPENING_DEFAULT, SHARPENING_DEFAULT)
     ATDebug_ntt = NTGetBoolean(ntinst.getBooleanTopic(APRILTAG_DEBUG_MODE_TOPIC_NAME), APRILTAG_DEBUG_MODE_DEFAULT, APRILTAG_DEBUG_MODE_DEFAULT, APRILTAG_DEBUG_MODE_DEFAULT)
     decision_margin_ntt = NTGetDouble(ntinst.getDoubleTopic(DECISION_MARGIN_TOPIC_NAME), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
-    configfile_ntt = NTGetString(ntinst.getStringTopic(CONFIG_FILE_TOPIC_NAME), CONFIG_FILE_DEFAULT, CONFIG_FILE_DEFAULT, CONFIG_FILE_DEFAULT)
+    tagconfigfile_ntt = NTGetString(ntinst.getStringTopic(TAG_CONFIG_FILE_TOPIC_NAME), TAG_CONFIG_FILE_DEFAULT,TAG_CONFIG_FILE_DEFAULT, TAG_CONFIG_FILE_DEFAULT)
+    coneconfigfile_ntt = NTGetString(ntinst.getStringTopic(CONE_CONFIG_FILE_TOPIC_NAME), CONE_CONFIG_FILE_DEFAULT,CONE_CONFIG_FILE_DEFAULT, CONE_CONFIG_FILE_DEFAULT)    
+    cubeconfigfile_ntt = NTGetString(ntinst.getStringTopic(CUBE_CONFIG_FILE_TOPIC_NAME), CUBE_CONFIG_FILE_DEFAULT,CUBE_CONFIG_FILE_DEFAULT, CUBE_CONFIG_FILE_DEFAULT)
     savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save File"), False, False, False)
     configfilefail_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Config File Fail"), False, False, False)
     active_ntt = NTGetBoolean(ntinst.getBooleanTopic(ACTIVE_TOPIC_NAME), True, True, True)
-    pose_data_bytes_ntt = NTGetRaw(ntinst, None, None, None)
+    pose_data_bytes_ntt = NTGetRaw(ntinst, POSE_DATA_RAW_TOPIC_NAME, None, None, None)
+    cone_pose_data_bytes_ntt = NTGetRaw(ntinst, CONE_POSE_DATA_RAW_TOPIC_NAME, None, None, None)
+    cube_pose_data_bytes_ntt = NTGetRaw(ntinst, CUBE_POSE_DATA_RAW_TOPIC_NAME, None, None, None)
     pose_data_string_header_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_HEADER),"", "", "")
+    cube_pose_data_string_header_ntt = NTGetString(ntinst.getStringTopic(CUBE_POSE_DATA_STRING_TOPIC_NAME_HEADER),"", "", "") 
+    cone_pose_data_string_header_ntt = NTGetString(ntinst.getStringTopic(CONE_POSE_DATA_STRING_TOPIC_NAME_HEADER),"", "", "")
     pose_data_string_data_translation_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_DATA_TRANSLATION),"", "", "")
     pose_data_string_data_rotation_ntt = NTGetString(ntinst.getStringTopic(POSE_DATA_STRING_TOPIC_NAME_DATA_ROTATION),"", "", "")
     temp_ntt = NTGetDouble(ntinst.getDoubleTopic(TEMP_TOPIC_NAME), 0, 0, 0)
     z_in_ntt = NTGetDouble(ntinst.getDoubleTopic(Z_IN_TOPIC_NAME), 0.0, 0.0, 0.0)
-
+    cone_enable_ntt = NTGetBoolean(ntinst.getBooleanTopic(CONE_ENABLE_TOPIC_NAME), False, False, False)
+    cone_min_h_ntt = NTGetDouble(ntinst.getDoubleTopic(CONE_MIN_HUE_TOPIC_NAME), CONE_MIN_HUE, CONE_MIN_HUE, CONE_MIN_HUE)
+    cone_min_s_ntt = NTGetDouble(ntinst.getDoubleTopic(CONE_MIN_SAT_TOPIC_NAME), CONE_MIN_SAT, CONE_MIN_SAT, CONE_MIN_SAT)
+    cone_min_v_ntt = NTGetDouble(ntinst.getDoubleTopic(CONE_MIN_VAL_TOPIC_NAME), CONE_MIN_VAL, CONE_MIN_VAL, CONE_MIN_VAL)
+    cone_max_h_ntt = NTGetDouble(ntinst.getDoubleTopic(CONE_MAX_HUE_TOPIC_NAME), CONE_MAX_HUE, CONE_MAX_HUE, CONE_MAX_HUE)
+    cone_max_s_ntt = NTGetDouble(ntinst.getDoubleTopic(CONE_MAX_SAT_TOPIC_NAME), CONE_MAX_SAT, CONE_MAX_SAT, CONE_MAX_SAT)
+    cone_max_v_ntt = NTGetDouble(ntinst.getDoubleTopic(CONE_MAX_VAL_TOPIC_NAME), CONE_MAX_VAL, CONE_MAX_VAL, CONE_MAX_VAL)
+    cube_min_h_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MIN_HUE_TOPIC_NAME), CUBE_MIN_HUE, CUBE_MIN_HUE, CUBE_MIN_HUE)
+    cube_min_s_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MIN_SAT_TOPIC_NAME), CUBE_MIN_SAT, CUBE_MIN_SAT, CUBE_MIN_SAT)
+    cube_min_v_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MIN_VAL_TOPIC_NAME), CUBE_MIN_VAL, CUBE_MIN_VAL, CUBE_MIN_VAL)
+    cube_max_h_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MAX_HUE_TOPIC_NAME), CUBE_MAX_HUE, CUBE_MAX_HUE, CUBE_MAX_HUE)
+    cube_max_s_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MAX_SAT_TOPIC_NAME), CUBE_MAX_SAT, CUBE_MAX_SAT, CUBE_MAX_SAT)
+    cube_max_v_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MAX_VAL_TOPIC_NAME), CUBE_MAX_VAL, CUBE_MAX_VAL, CUBE_MAX_VAL)
+    tag_enable = NTGetBoolean(ntinst.getBooleanTopic(TAG_ENABLE_TOPIC_NAME), False, False, False)
+    cube_enable_ntt = NTGetBoolean(ntinst.getBooleanTopic(CUBE_ENABLE_TOPIC_NAME), False, False, False)
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
 
     # use for file
-    config = configparser.ConfigParser()
-    file_read(config, configfilefail_ntt)
-    nt_update(config,threads_ntt, quadDecimate_ntt, blur_ntt, refineEdges_ntt, \
-        decodeSharpening_ntt, ATDebug_ntt, decision_margin_ntt, configfile_ntt)
+    config_tag = configparser.ConfigParser()
+    config_cone = configparser.ConfigParser()
+    config_cube = configparser.ConfigParser()
+
+    file_read_tag(config_tag, configfilefail_ntt)
+    file_read_cone(config_cone, configfilefail_ntt)
+    file_read_cube(config_cube, configfilefail_ntt)
+
+    nt_update_tags(config_tag,threads_ntt, quadDecimate_ntt, blur_ntt, refineEdges_ntt, \
+        decodeSharpening_ntt, ATDebug_ntt, decision_margin_ntt, tagconfigfile_ntt)
+    nt_update_cones(config_cone, coneconfigfile_ntt, \
+        cone_min_h_ntt, cone_min_s_ntt, cone_min_v_ntt, cone_max_h_ntt, cone_max_s_ntt, cone_max_v_ntt)
+    nt_update_cubes(config_cube, cubeconfigfile_ntt, \
+        cube_min_h_ntt, cube_min_s_ntt, cube_min_v_ntt, cube_max_h_ntt, cube_max_s_ntt, cube_max_v_ntt)
+    
     detectorConfig = robotpy_apriltag.AprilTagDetector.Config()
 
-    detectorConfig.numThreads = int(float(config.get('VISION', THREADS_TOPIC_NAME)))
-    detectorConfig.quadDecimate = float(config.get('VISION', DECIMATE_TOPIC_NAME))
-    detectorConfig.quadSigma = float (config.get('VISION', BLUR_TOPIC_NAME))
-    detectorConfig.refineEdges = ast.literal_eval(config.get('VISION', REFINE_EDGES_TOPIC_NAME))
-    detectorConfig.decodeSharpening = float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME))
-    detectorConfig.debug = ast.literal_eval(config.get('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME))
+    detectorConfig.numThreads = int(float(config_tag.get('VISION', THREADS_TOPIC_NAME)))
+    detectorConfig.quadDecimate = float(config_tag.get('VISION', DECIMATE_TOPIC_NAME))
+    detectorConfig.quadSigma = float (config_tag.get('VISION', BLUR_TOPIC_NAME))
+    detectorConfig.refineEdges = ast.literal_eval(config_tag.get('VISION', REFINE_EDGES_TOPIC_NAME))
+    detectorConfig.decodeSharpening = float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME))
+    detectorConfig.debug = ast.literal_eval(config_tag.get('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME))
     detector.setConfig(detectorConfig)
     
+    cone_min_h = int(config_cone.get('VISION', CONE_MIN_HUE_TOPIC_NAME))
+    cone_min_s = int(config_cone.get('VISION', CONE_MIN_SAT_TOPIC_NAME))
+    cone_min_v = int(config_cone.get('VISION', CONE_MIN_VAL_TOPIC_NAME))
+    cone_max_h = int(config_cone.get('VISION', CONE_MAX_HUE_TOPIC_NAME))
+    cone_max_s = int(config_cone.get('VISION', CONE_MAX_SAT_TOPIC_NAME))
+    cone_max_v = int(config_cone.get('VISION', CONE_MAX_VAL_TOPIC_NAME))
+    
+    cube_min_h = int(config_cube.get('VISION', CUBE_MIN_HUE_TOPIC_NAME))
+    cube_min_s = int(config_cube.get('VISION', CUBE_MIN_SAT_TOPIC_NAME))
+    cube_min_v = int(config_cube.get('VISION', CUBE_MIN_VAL_TOPIC_NAME))
+    cube_max_h = int(config_cube.get('VISION', CUBE_MAX_HUE_TOPIC_NAME))
+    cube_max_s = int(config_cube.get('VISION', CUBE_MAX_SAT_TOPIC_NAME))
+    cube_max_v = int(config_cube.get('VISION', CUBE_MAX_VAL_TOPIC_NAME))
+
     #set up pose estimation
     calib_data_path = "calib_data"
     calib_data = np.load(f"{calib_data_path}/{CAMERA_CAL_FILE_NAME}")
@@ -386,9 +662,9 @@ def main():
     picam2.configure(picam2_config)
     picam2.start()
 
-    
     # (optional) Setup a CvSource. This will send images back to the Dashboard
     outputStream = CameraServer.putVideo("final image", cam_config['width'], cam_config['height'])
+    outputMask = CameraServer.putVideo("mask image", cam_config['width'], cam_config['height'])
 
     # Allocating new images is very expensive, always try to preallocate
     #img = np.zeros(shape=(cam_config['height'], cam_config['width'], 3), dtype=np.uint8)
@@ -399,6 +675,7 @@ def main():
     current_seconds = 0
     prev_seconds = 0
     temp_sec = 30
+    
     while True:
         rio_time = rio_time_ntt.get()
         start_time = time.time()
@@ -409,7 +686,7 @@ def main():
             temp_sec = temp_sec + 1
             uptime_ntt.set(seconds)
             print(f'w={w} h={h} sec={seconds}')
-        
+
         if temp_sec >= TEMP_UPDATE_INTERVAL:
             with open("/sys/class/thermal/thermal_zone0/temp", 'r') as f:
                 temp_ntt.set(int(f.readline()) / 1000) #converting milidegrees C to degrees C
@@ -433,52 +710,208 @@ def main():
             # Insert your image processing logic here!
             #
             img = cv2.flip(img, -1)
-            gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            # Tags
+            if tag_enable.get() == True:
+
+                gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                
+                if debug_ntt.get() == True:
+                    detectorConfig.numThreads = int(threads_ntt.get())
+                    detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
+                    detectorConfig.quadSigma = float(blur_ntt.get())
+                    detectorConfig.refineEdges = refineEdges_ntt.get()
+                    detectorConfig.decodeSharpening = float(decodeSharpening_ntt.get())
+                    detectorConfig.debug = ATDebug_ntt.get()
+                    detector.setConfig(detectorConfig)
+                    config_tag.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
+
+                detected = detector.detect(gimg)
+                tag_poses = []
+                tags = []
+
+                for tag in detected:
+                    #print(f'id={tag.getId()} DM={tag.getDecisionMargin()}')
+                    if tag.getDecisionMargin() > float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
+                        tag_pose = apriltag_est.estimateHomography(tag)
+                        tag_poses.append(tag_pose)
+                        tags.append(tag)
+                    
+                if len(tags) > 0:
+                    image_num += 1
+                    image_time = time.process_time() - t1_time
+                    pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
+                    pose_data_bytes_ntt.set(pose_data)
+                    header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
+                    z_in_ntt.set(z_in)
+                    pose_data_string_header_ntt.set(header)
+                    NetworkTableInstance.getDefault().flush()
+
+                if debug_ntt.get() == True:
+                    if len(tags) > 0:
+                        img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
+                        header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
+                        pose_data_string_header_ntt.set(header)
+                        pose_data_string_data_translation_ntt.set(trans_data)
+                        pose_data_string_data_rotation_ntt.set(rot_data)
+                        NetworkTableInstance.getDefault().flush()
+                    if savefile_ntt.get() == True:
+                        file_write_tags(tagconfigfile_ntt.get(), threads_ntt.get(), \
+                            quadDecimate_ntt.get(), blur_ntt.get(), refineEdges_ntt.get(), \
+                            decodeSharpening_ntt.get(), ATDebug_ntt.get(), \
+                            decision_margin_ntt.get())
+                        savefile_ntt.set(False)
+
+            # Cones
+            if cone_enable_ntt.get() == True:
+                if debug_ntt.get() == True:
+                    cone_min_h = int(cone_min_h_ntt.get())
+                    cone_min_s = int(cone_min_s_ntt.get())
+                    cone_min_v = int(cone_min_v_ntt.get())
+                    cone_max_h = int(cone_max_h_ntt.get())
+                    cone_max_s = int(cone_max_s_ntt.get())
+                    cone_max_v = int(cone_max_v_ntt.get())
+                    
+                #print(f'{int(min_h_ntt.get())} {int(min_s_ntt.get())} {int(min_v_ntt.get())} {int(max_h_ntt.get())} {int(max_s_ntt.get())} {int(max_v_ntt.get())}')
+                # filter colors in HSV space
+                img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+                # only keep pixels with colors that match the range in color_config
+                yellow_low = np.array([cone_min_h, cone_min_s, cone_min_v])
+                yellow_high = np.array([cone_max_h, cone_max_s, cone_max_v])
+                img_mask = cv2.inRange(img_HSV, yellow_low, yellow_high)
+                valid = 0
+                white_pxs = 999999
+                
+                yellow, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                #sorting the yellow pixels from largest to smallest
+                yellowSorted = sorted(yellow, key=lambda x: cv2.contourArea(x), reverse=True)
+                
+                for y in yellowSorted:
+                    if cv2.contourArea(y) >= CONE_MIN_AREA:
+                        r_x,r_y,r_w,r_h = cv2.boundingRect(y)
+
+                        # crop to just bounding rect
+                        bounding_rect = img_mask[r_y:r_y+r_h,r_x:r_x+r_w]
+                        
+                        top_y_line = r_y + int(r_h* TOP_LINE_DIST_FROM_TOP)
+                        bottom_y_line = r_y + int(r_h*BOTTOM_LINE_DIST_FROM_TOP)
+                        top_px_count = 0
+                        bottom_px_count = 0
+
+                        for i in range(r_x, r_x + r_w):
+                            top_px = img_mask[top_y_line, i]
+                            if top_px == 255:
+                                top_px_count += 1
+
+                            bottom_px = img_mask[bottom_y_line, i]
+                            if bottom_px == 255:
+                                bottom_px_count += 1
+        
+                        #print(f'top={top_px_count} bottom={bottom_px_count}')
+
+                        # intersecting line across bounding box toward the top should always have fewer white pixels than through a line close to the bottom of the image
+                        if (top_px_count < bottom_px_count):
+                            
+                            top_half = np.ascontiguousarray(img_mask[r_y:r_y+int(r_h/2),r_x:r_x+r_w])
+                            bottom_half = np.ascontiguousarray(img_mask[r_y+int(r_h/2):r_y+r_h,r_x:r_x+r_w])
+                            if cv2.countNonZero(top_half) < cv2.countNonZero(bottom_half):
+                                # check that at most 10 pixels are on in the upper left corner of bounding rect
+                                upper_left_corner = bounding_rect[r_y:r_y+r_h+int(r_h * 0.30), r_x:r_x+r_w+int(r_w * 0.15)]
+                                white_pxs = cv2.countNonZero(upper_left_corner)
+                                if white_pxs < 10:
+                                    valid += 1
+                                    #print(f'a={cv2.contourArea(y)}')
+                                    #leftmost = tuple(y[y[:,:,0].argmin()][0])
+                                    #rightmost = tuple(y[y[:,:,0].argmax()][0])
+                                    #bottommost = tuple(y[y[:,:,1].argmax()][0])
+                                    center_x = r_x + int(r_w / 2)
+                                    center_y = r_y + int(r_h / 2)
+                                    distance = cone_regress_distance(center_x) # get distance using y location
+                                    angle = cone_regress_angle(center_y) # get angle using x location
+
+                                    image_num += 1
+                                    image_time = time.process_time() - t1_time
+                                    pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 2, distance, angle)
+                                    cone_pose_data_bytes_ntt.set(pose_data)
+                                    NetworkTableInstance.getDefault().flush()
+
+                                    if debug_ntt.get() == True:
+                                        txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
+                                        cone_pose_data_string_header_ntt.set(txt)
+                                        cv2.drawContours(img, [y], -1, (0,0,255), 3)
+                                        #cv2.circle(img,leftmost, 4, (0,255,0), -1)
+                                        #cv2.circle(img,rightmost, 4, (0,255,0), -1)
+                                        #cv2.circle(img,bottommost, 4, (0,255,0), -1)
+                                        cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
+                                        cv2.rectangle(img,(r_x, r_y), (r_x + int(r_w * 0.15), r_y + int(r_h * 0.30)), (0,255,0), 3) # upper left corner
+                                        cv2.line(img, (r_x, r_y + int(r_y * TOP_LINE_DIST_FROM_TOP)), (r_x + r_w, r_y + int(r_y * TOP_LINE_DIST_FROM_TOP)), (255, 0 , 0), 3)
+                                        cv2.line(img, (r_x, r_y + int(r_y * BOTTOM_LINE_DIST_FROM_TOP)), (r_x + r_w, r_y + int(r_y * BOTTOM_LINE_DIST_FROM_TOP)), (255, 0 , 0), 3)
+
+                                    if valid == 1:
+                                        break #stop after finding first (largest) cone in this image
+
+                #print(f'yellow sort={len(yellowSorted)} valid={valid} white={white_pxs}')
+
+                if savefile_ntt.get() == True:
+                    file_write_cones(coneconfigfile_ntt.get(), cone_min_h_ntt.get(), cone_min_s_ntt.get(), cone_min_v_ntt.get(), cone_max_h_ntt.get(), cone_max_s_ntt.get(), cone_max_v_ntt.get())
+                    savefile_ntt.set(False)
+            
+            #CUBE!!!
+            if cube_enable_ntt.get() == True:
+                if debug_ntt.get() == True:
+                    cube_min_h = int(cube_min_h_ntt.get())
+                    cube_min_s = int(cube_min_s_ntt.get())
+                    cube_min_v = int(cube_min_v_ntt.get())
+                    cube_max_h = int(cube_max_h_ntt.get())
+                    cube_max_s = int(cube_max_s_ntt.get())
+                    cube_max_v = int(cube_max_v_ntt.get())
+                    
+                # filter colors in HSV space
+                img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+                # only keep pixels with colors that match the range in color_config
+                purple_low = np.array([cube_min_h, cube_min_s, cube_min_v])
+                purple_high = np.array([cube_max_h, cube_max_s, cube_max_v])
+                img_mask = cv2.inRange(img_HSV, purple_low, purple_high)
+                valid = 0
+
+                purple, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                #sorting the purple pixels from largest to smallest
+                purpleSorted = sorted(purple, key=lambda x: cv2.contourArea(x), reverse=True)
+                
+                for y in purpleSorted:
+                    if cv2.contourArea(y) >= CUBE_MIN_AREA:
+                        r_x,r_y,r_w,r_h = cv2.boundingRect(y)
+
+                        valid += 1
+                        #print(f'a={cv2.contourArea(y)}')
+                        center_x = r_x + int(r_w / 2)
+                        center_y = r_y + int(r_h / 2)
+                        print(f' x={center_x} y={center_y}')
+                        distance = cube_regress_distance(center_x) # get distance using y location
+                        angle = cube_regress_angle(center_y) # get angle using x location
+                        
+                        image_num += 1
+                        image_time = time.process_time() - t1_time
+                        pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
+                        cube_pose_data_bytes_ntt.set(pose_data)
+                        NetworkTableInstance.getDefault().flush()
+                        
+                        if debug_ntt.get() == True:
+                            txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
+                            cube_pose_data_string_header_ntt.set(txt)
+                            cv2.drawContours(img, [y], -1, (0,0,255), 3)
+                            cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
+                        if valid == 1:
+                            break #stop after finding first (largest) cone in this image                
+                if savefile_ntt.get() == True:
+                    file_write_cubes(cubeconfigfile_ntt.get(), cube_min_h_ntt.get(), cube_min_s_ntt.get(), cube_min_v_ntt.get(), cube_max_h_ntt.get(), cube_max_s_ntt.get(), cube_max_v_ntt.get())
+                    savefile_ntt.set(False)
             
             if debug_ntt.get() == True:
-                detectorConfig.numThreads = int(threads_ntt.get())
-                detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
-                detectorConfig.quadSigma = float(blur_ntt.get())
-                detectorConfig.refineEdges = refineEdges_ntt.get()
-                detectorConfig.decodeSharpening = float(decodeSharpening_ntt.get())
-                detectorConfig.debug = ATDebug_ntt.get()
-                detector.setConfig(detectorConfig)
-                config.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
-
-            detected = detector.detect(gimg)
-            tag_poses = []
-            tags = []
-            for tag in detected:
-                #print(f'num={len(tags)} DM={tag.getDecisionMargin()}')
-                if tag.getDecisionMargin() > float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and tag.getId() >= 1 and tag.getId() <= 8:
-                    tag_pose = apriltag_est.estimateHomography(tag)
-                    tag_poses.append(tag_pose)
-                    tags.append(tag)
-                    
-            if len(tags) > 0:
-                image_num += 1
-                image_time = time.process_time() - t1_time
-                pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
-                pose_data_bytes_ntt.set(pose_data)
-                header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
-                z_in_ntt.set(z_in)
-                pose_data_string_header_ntt.set(header)
-
-            if debug_ntt.get() == True:
-                if len(tags) > 0:
-                    img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
-                    header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
-                    pose_data_string_header_ntt.set(header)
-                    pose_data_string_data_translation_ntt.set(trans_data)
-                    pose_data_string_data_rotation_ntt.set(rot_data)
-                    z_in_ntt.set(z_in)
-                    NetworkTableInstance.getDefault().flush()
                 outputStream.putFrame(img) # send to dashboard
-                if savefile_ntt.get() == True:
-                    file_write(configfile_ntt.get(), threads_ntt.get(), \
-                        quadDecimate_ntt.get(), blur_ntt.get(), refineEdges_ntt.get(), \
-                        decodeSharpening_ntt.get(), ATDebug_ntt.get(), \
-                        decision_margin_ntt.get())
-                    savefile_ntt.set(False)
+                if cone_enable_ntt.get() or cube_enable_ntt.get() == True:
+                    outputMask.putFrame(img_mask) # send to dashboard
 
 main()
