@@ -607,17 +607,17 @@ def main():
 
     # use for file
     config_tag = configparser.ConfigParser()
-    #config_cone = configparser.ConfigParser()
+    config_cone = configparser.ConfigParser()
     config_cube = configparser.ConfigParser()
 
     file_read_tag(config_tag, configfilefail_ntt)
-    #file_read_cone(config_cone, configfilefail_ntt)
+    file_read_cone(config_cone, configfilefail_ntt)
     file_read_cube(config_cube, configfilefail_ntt)
 
     nt_update_tags(config_tag,threads_ntt, quadDecimate_ntt, blur_ntt, refineEdges_ntt, \
         decodeSharpening_ntt, ATDebug_ntt, decision_margin_ntt, tagconfigfile_ntt)
-    #nt_update_cones(config_cone, coneconfigfile_ntt, \
-        #cone_min_h_ntt, cone_min_s_ntt, cone_min_v_ntt, cone_max_h_ntt, cone_max_s_ntt, cone_max_v_ntt)
+    nt_update_cones(config_cone, coneconfigfile_ntt, \
+        cone_min_h_ntt, cone_min_s_ntt, cone_min_v_ntt, cone_max_h_ntt, cone_max_s_ntt, cone_max_v_ntt)
     nt_update_cubes(config_cube, cubeconfigfile_ntt, \
         cube_min_h_ntt, cube_min_s_ntt, cube_min_v_ntt, cube_max_h_ntt, cube_max_s_ntt, cube_max_v_ntt)
     
@@ -631,14 +631,12 @@ def main():
     detectorConfig.debug = ast.literal_eval(config_tag.get('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME))
     detector.setConfig(detectorConfig)
     
-    '''
     cone_min_h = int(config_cone.get('VISION', CONE_MIN_HUE_TOPIC_NAME))
     cone_min_s = int(config_cone.get('VISION', CONE_MIN_SAT_TOPIC_NAME))
     cone_min_v = int(config_cone.get('VISION', CONE_MIN_VAL_TOPIC_NAME))
     cone_max_h = int(config_cone.get('VISION', CONE_MAX_HUE_TOPIC_NAME))
     cone_max_s = int(config_cone.get('VISION', CONE_MAX_SAT_TOPIC_NAME))
     cone_max_v = int(config_cone.get('VISION', CONE_MAX_VAL_TOPIC_NAME))
-    '''
 
     cube_min_h = int(config_cube.get('VISION', CUBE_MIN_HUE_TOPIC_NAME))
     cube_min_s = int(config_cube.get('VISION', CUBE_MIN_SAT_TOPIC_NAME))
@@ -716,11 +714,13 @@ def main():
         rio_time = rio_time_ntt.get()
         start_time = time.time()
         current_seconds = start_time
+        time_check = False
         if current_seconds - prev_seconds >= UPTIME_UPDATE_INTERVAL:
             prev_seconds = current_seconds
             seconds = seconds + 1
             temp_sec = temp_sec + 1
             uptime_ntt.set(seconds)
+            time_check = True
             print(f'w={w} h={h} sec={seconds}')
 
         if temp_sec >= TEMP_UPDATE_INTERVAL:
@@ -751,8 +751,10 @@ def main():
             if tag_enable.get() == True:
 
                 gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                
-                if debug_ntt.get() == True:
+                             
+                db = debug_ntt.get()
+
+                if db == True:
                     detectorConfig.numThreads = int(threads_ntt.get())
                     detectorConfig.quadDecimate = float(quadDecimate_ntt.get())
                     detectorConfig.quadSigma = float(blur_ntt.get())
@@ -778,19 +780,18 @@ def main():
                     image_time = time.process_time() - t1_time
                     pose_data = pose_data_bytes(image_num, rio_time, image_time, tags, tag_poses)
                     pose_data_bytes_ntt.set(pose_data)
-                    header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
-                    z_in_ntt.set(z_in)
-                    pose_data_string_header_ntt.set(header)
                     NetworkTableInstance.getDefault().flush()
 
-                if debug_ntt.get() == True:
+                if db == True:
                     if len(tags) > 0:
-                        img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
                         header, rot_data, trans_data, z_in = pose_data_string(image_num, rio_time, image_time, tags, tag_poses)
                         pose_data_string_header_ntt.set(header)
                         pose_data_string_data_translation_ntt.set(trans_data)
                         pose_data_string_data_rotation_ntt.set(rot_data)
-                        NetworkTableInstance.getDefault().flush()
+                        z_in_ntt.set(z_in)
+                        img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
+                    outputStream.putFrame(img) # send to dashboard
+                    NetworkTableInstance.getDefault().flush()
                     if savefile_ntt.get() == True:
                         file_write_tags(tagconfigfile_ntt.get(), threads_ntt.get(), \
                             quadDecimate_ntt.get(), blur_ntt.get(), refineEdges_ntt.get(), \
@@ -799,9 +800,11 @@ def main():
                         savefile_ntt.set(False)
 
             # Cones
-            if cone_enable_ntt.get() == True:
-                '''
-                if debug_ntt.get() == True:
+            elif cone_enable_ntt.get() == True:
+
+                db = debug_ntt.get()
+
+                if db == True:
                     cone_min_h = int(cone_min_h_ntt.get())
                     cone_min_s = int(cone_min_s_ntt.get())
                     cone_min_v = int(cone_min_v_ntt.get())
@@ -816,14 +819,16 @@ def main():
                 yellow_low = np.array([cone_min_h, cone_min_s, cone_min_v])
                 yellow_high = np.array([cone_max_h, cone_max_s, cone_max_v])
                 img_mask = cv2.inRange(img_HSV, yellow_low, yellow_high)
-                valid = 0 # valid = 1 => found a cone after looking at everything in image; value = 0 => didn't find a cone 
-                white_pxs = 999999 # number of pixels found in upper left corner of bounding rect around a cone
+                # number of pixels found in upper left corner of bounding rect around a cone
+                # should be close to 0, so start with a large number 
+                white_pxs = 999999
                 
                 yellow, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                 #sorting the yellow pixels from largest to smallest
                 yellowSorted = sorted(yellow, key=lambda x: cv2.contourArea(x), reverse=True)
                 
+                found_first_cone = False
                 for y in yellowSorted:
                     if cv2.contourArea(y) >= CONE_MIN_AREA:
                         r_x,r_y,r_w,r_h = cv2.boundingRect(y)
@@ -857,44 +862,52 @@ def main():
                                 upper_left_corner = bounding_rect[r_y:r_y+r_h+int(r_h * 0.30), r_x:r_x+r_w+int(r_w * 0.15)]
                                 white_pxs = cv2.countNonZero(upper_left_corner)
                                 if white_pxs < 10:
-                                    valid += 1
-                                    #print(f'a={cv2.contourArea(y)}')
-                                    center_x = r_x + int(round(r_w / 2))
-                                    center_y = r_y + int(round(r_h / 2))
-                                    print(f'cone_x={center_x} cone_y={center_y}')
+                                    
+                                    if found_first_cone == False:
+                                        #print(f'a={cv2.contourArea(y)}')
+                                        center_x = r_x + int(round(r_w / 2))
+                                        center_y = r_y + int(round(r_h / 2))
+                                        #print(f'cone_x={center_x} cone_y={center_y}')
 
-                                    distance = cone_regress_distance(center_x) # get distance using y location
-                                    angle = cone_regress_angle(center_y) # get angle using x location
+                                        # use cube distance and angle for cone as well, should be close enough for angles at least
+                                        distance = cube_regress_distance(center_y) # get distance using y location
+                                        angle = cube_regress_angle(center_x) # get angle using x location
 
-                                    image_num += 1
-                                    image_time = time.process_time() - t1_time
-                                    pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 2, distance, angle)
-                                    cone_pose_data_bytes_ntt.set(pose_data)
-                                    NetworkTableInstance.getDefault().flush()
+                                        image_num += 1
+                                        image_time = time.process_time() - t1_time
+                                        pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 2, distance, angle)
+                                        cone_pose_data_bytes_ntt.set(pose_data)
+                                        NetworkTableInstance.getDefault().flush()
 
-                                    if debug_ntt.get() == True:
-                                        txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
-                                        cone_pose_data_string_header_ntt.set(txt)
-                                        cv2.drawContours(img, [y], -1, (0,0,255), 3)
-                                        cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
-                                        cv2.rectangle(img,(r_x, r_y), (r_x + int(r_w * 0.15), r_y + int(r_h * 0.30)), (0,255,0), 3) # upper left corner
-                                        cv2.line(img, (r_x, r_y + int(r_y * TOP_LINE_DIST_FROM_TOP)), (r_x + r_w, r_y + int(r_y * TOP_LINE_DIST_FROM_TOP)), (255, 0 , 0), 3)
-                                        cv2.line(img, (r_x, r_y + int(r_y * BOTTOM_LINE_DIST_FROM_TOP)), (r_x + r_w, r_y + int(r_y * BOTTOM_LINE_DIST_FROM_TOP)), (255, 0 , 0), 3)
+                                        found_first_cone = True
 
-                                    if valid == 1:
-                                        break #stop after finding first (largest) cone in this image
+                                    if db == True:
+                                        
+                                        if found_first_cone == True:
+                                            txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
+                                            cone_pose_data_string_header_ntt.set(txt)
+                                            cv2.drawContours(img, [y], -1, (0,0,255), 3)
+                                            cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
+                                            #cv2.line(img, (r_x, r_y + int(round(r_y * TOP_LINE_DIST_FROM_TOP))), (r_x + r_w, r_y + int(round(r_y * TOP_LINE_DIST_FROM_TOP))), (255, 0 , 0), 3)
+                                            #cv2.line(img, (r_x, r_y + int(round(r_y * BOTTOM_LINE_DIST_FROM_TOP))), (r_x + r_w, r_y + int(round(r_y * BOTTOM_LINE_DIST_FROM_TOP))), (255, 0 , 0), 3)
 
-                #print(f'yellow sort={len(yellowSorted)} valid={valid} white={white_pxs}')
+                                        #cv2.rectangle(img,(r_x, r_y), (r_x + int(round(r_w * 0.15)), r_y + int(round(r_h * 0.30))), (0,255,0), 3) # upper left corner
+                                        outputStream.putFrame(img) # send to dashboard
+                                        outputMask.putFrame(img_mask) # send to dashboard
 
-                if savefile_ntt.get() == True:
-                    file_write_cones(coneconfigfile_ntt.get(), cone_min_h_ntt.get(), cone_min_s_ntt.get(), cone_min_v_ntt.get(), cone_max_h_ntt.get(), cone_max_s_ntt.get(), cone_max_v_ntt.get())
-                    savefile_ntt.set(False)
-                #continue
-            '''
+                if db == True:
+                    outputStream.putFrame(img) # send to dashboard
+                    outputMask.putFrame(img_mask) # send to dashboard
+                    if savefile_ntt.get() == True:
+                        file_write_cones(coneconfigfile_ntt.get(), cone_min_h_ntt.get(), cone_min_s_ntt.get(), cone_min_v_ntt.get(), cone_max_h_ntt.get(), cone_max_s_ntt.get(), cone_max_v_ntt.get())
+                        savefile_ntt.set(False)
+
             #CUBE!!!
-            if cube_enable_ntt.get() == True:
+            elif cube_enable_ntt.get() == True:
             
-                if debug_ntt.get() == True:
+                db = debug_ntt.get()
+
+                if db == True:
                     cube_min_h = int(cube_min_h_ntt.get())
                     cube_min_s = int(cube_min_s_ntt.get())
                     cube_min_v = int(cube_min_v_ntt.get())
@@ -908,47 +921,61 @@ def main():
                 purple_low = np.array([cube_min_h, cube_min_s, cube_min_v])
                 purple_high = np.array([cube_max_h, cube_max_s, cube_max_v])
                 img_mask = cv2.inRange(img_HSV, purple_low, purple_high)
-                valid = 0 # valid = 1 => found a cube after looking at everything in image; value = 0 => didn't find a cube 
-
+                img_mask[320:120,0:0] = 0
+                
                 purple, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                 #sorting the purple pixels from largest to smallest
                 purpleSorted = sorted(purple, key=lambda x: cv2.contourArea(x), reverse=True)
                 
+                found_first_cube = False
                 for y in purpleSorted:
-                    if cv2.contourArea(y) >= CUBE_MIN_AREA:
+                    if (cv2.contourArea(y) >= CUBE_MIN_AREA):
+
                         r_x,r_y,r_w,r_h = cv2.boundingRect(y)
 
-                        valid += 1
-                        #print(f'a={cv2.contourArea(y)}')
-                        center_x = r_x + int(round(r_w / 2))
-                        center_y = r_y + int(round(r_h / 2))
-                        print(f'cube_x={center_x} cube_y={center_y}')
-                        distance = cube_regress_distance(center_y) # get distance (inches) using y location 
-                        angle = cube_regress_angle(center_x) # get angle (degrees) using x location
-                        
-                        image_num += 1
-                        image_time = time.process_time() - t1_time
-                        pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
-                        cube_pose_data_bytes_ntt.set(pose_data)
-                        NetworkTableInstance.getDefault().flush()
-                        
-                        if debug_ntt.get() == True:
-                            txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
-                            cube_pose_data_string_header_ntt.set(txt)
-                            cv2.drawContours(img, [y], -1, (0,255,0), 1)
-                            cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
-                        if valid == 1:
-                            break #stop after finding first (largest) cone in this image                
-                if savefile_ntt.get() == True:
-                    file_write_cubes(cubeconfigfile_ntt.get(), cube_min_h_ntt.get(), cube_min_s_ntt.get(), cube_min_v_ntt.get(), cube_max_h_ntt.get(), cube_max_s_ntt.get(), cube_max_v_ntt.get())
-                    savefile_ntt.set(False)
-            
-                #continue
+                        ar = float(r_w)/r_h 
+                        if time_check == True:
+                            print(ar)
 
-            if debug_ntt.get() == True:
-                outputStream.putFrame(img) # send to dashboard
-                if cone_enable_ntt.get() == True or cube_enable_ntt.get() == True:
+                        center_x = r_x + int(round(r_w / 2))
+                        angle = cube_regress_angle(center_x) # get angle (degrees) using x location
+
+                        if (ar > 0.9 and ar < 4) and (angle > -35.0 and angle < 35.0):
+                            
+                            if found_first_cube == False:
+                                #print(f'a={cv2.contourArea(y)}')
+                                center_y = r_y + int(round(r_h / 2))
+                                #print(f'cube_x={center_x} cube_y={center_y}')
+                                distance = cube_regress_distance(center_y) # get distance (inches) using y location 
+                   
+                                image_num += 1
+                                image_time = time.process_time() - t1_time
+                                pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
+                                cube_pose_data_bytes_ntt.set(pose_data)
+                                NetworkTableInstance.getDefault().flush()
+
+                                found_first_cube = True
+
+                            if db == True:
+                                if found_first_cube == True:
+                                    txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
+                                    cube_pose_data_string_header_ntt.set(txt)
+                                    cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
+
+                                cv2.drawContours(img, [y], -1, (0,255,0), 1)
+
+                                outputStream.putFrame(img) # send to dashboard
+                                outputMask.putFrame(img_mask) # send to dashboard
+
+                if db == True:
+                    outputStream.putFrame(img) # send to dashboard
                     outputMask.putFrame(img_mask) # send to dashboard
+                    if savefile_ntt.get() == True:
+                        file_write_cubes(cubeconfigfile_ntt.get(), cube_min_h_ntt.get(), cube_min_s_ntt.get(), cube_min_v_ntt.get(), cube_max_h_ntt.get(), cube_max_s_ntt.get(), cube_max_v_ntt.get())
+                        savefile_ntt.set(False)
+            
+            else:
+                continue
 
 main()
