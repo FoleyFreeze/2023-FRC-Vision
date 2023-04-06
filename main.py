@@ -76,10 +76,10 @@ def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
         y2 = int(tag.getCorner(2).y)
         x3 = int(tag.getCorner(3).x)
         y3 = int(tag.getCorner(3).y)
-        cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 5) #starts at top left corner of apriltag
-        cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 5) #top left to bottom left
-        cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 5) #bottom left to bottom right
-        cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 5) #bottom right to top right
+        cv2.line(img, (x0, y0), (x1, y1), (0,255,0), 1) #starts at top left corner of apriltag
+        cv2.line(img, (x1, y1), (x2, y2), (0,255,0), 1) #top left to bottom left
+        cv2.line(img, (x2, y2), (x3, y3), (0,255,0), 1) #bottom left to bottom right
+        cv2.line(img, (x3, y3), (x0, y0), (0,255,0), 1) #bottom right to top right
         cv2.putText(img, str(tag.getId()), (int(tag.getCenter().x), int(tag.getCenter().y)), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255)) # ID in center
         rVector[0][0] = tag_poses[tag_pose].rotation().X()
         rVector[1][0] = tag_poses[tag_pose].rotation().Y()
@@ -89,7 +89,7 @@ def draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs):
         tVector[2][0] = tag_poses[tag_pose].translation().Z()
         tag_pose += 1
         #for rotation, ask if its shrinking on each axis 
-        cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 3)
+        cv2.drawFrameAxes(img, camMatrix, distCoeffs, rVector, tVector, .076, 1)
     return img
 
 def file_write_tags(file, 
@@ -240,6 +240,8 @@ def file_read_cube(parser, configfile_failure_ntt):
         parser.set('VISION', CUBE_MAX_HUE_TOPIC_NAME, str(CUBE_MAX_HUE))
         parser.set('VISION', CUBE_MAX_SAT_TOPIC_NAME, str(CUBE_MAX_SAT))
         parser.set('VISION', CUBE_MAX_VAL_TOPIC_NAME, str(CUBE_MAX_VAL))
+        parser.set('VISION', CUBE_MIN_AREA_TOPIC_NAME, str(CUBE_MIN_AREA))
+
         with open("/home/pi/" + CUBE_CONFIG_FILE_DEFAULT, 'w') as config:
             parser.write(config)
         configfile_failure_ntt.set(False) # config file recreated
@@ -272,7 +274,8 @@ def nt_update_cubes(config,
               min_v,
               max_h,
               max_s,
-              max_v):
+              max_v,
+              min_area):
     # sync the stuff in the file with matching values in the file
 
     configfile.set(str(config.get('VISION', CUBE_CONFIG_FILE_TOPIC_NAME)))
@@ -282,6 +285,7 @@ def nt_update_cubes(config,
     max_h.set(float(config.get('VISION', CUBE_MAX_HUE_TOPIC_NAME)))
     max_s.set(float(config.get('VISION', CUBE_MAX_SAT_TOPIC_NAME)))
     max_v.set(float(config.get('VISION', CUBE_MAX_VAL_TOPIC_NAME)))
+    min_area.set(float(config.get('VISION', CUBE_MIN_AREA_TOPIC_NAME)))
 
 def nt_update_cones(config,
                 configfile,
@@ -406,6 +410,9 @@ def main():
     cube_max_v_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MAX_VAL_TOPIC_NAME), CUBE_MAX_VAL, CUBE_MAX_VAL, CUBE_MAX_VAL)
     tag_enable = NTGetBoolean(ntinst.getBooleanTopic(TAG_ENABLE_TOPIC_NAME), False, False, False)
     cube_enable_ntt = NTGetBoolean(ntinst.getBooleanTopic(CUBE_ENABLE_TOPIC_NAME), False, False, False)
+    cube_min_area_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MIN_AREA_TOPIC_NAME), CUBE_MIN_AREA, CUBE_MIN_AREA, CUBE_MIN_AREA)
+    cube_angle_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_ANGLE_TOPIC_NAME), 0.0, 0.0, 0.0)
+
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
 
@@ -423,7 +430,8 @@ def main():
     nt_update_cones(config_cone, coneconfigfile_ntt, \
         cone_min_h_ntt, cone_min_s_ntt, cone_min_v_ntt, cone_max_h_ntt, cone_max_s_ntt, cone_max_v_ntt)
     nt_update_cubes(config_cube, cubeconfigfile_ntt, \
-        cube_min_h_ntt, cube_min_s_ntt, cube_min_v_ntt, cube_max_h_ntt, cube_max_s_ntt, cube_max_v_ntt)
+        cube_min_h_ntt, cube_min_s_ntt, cube_min_v_ntt, cube_max_h_ntt, cube_max_s_ntt, cube_max_v_ntt, \
+        cube_min_area_ntt)
     
     detectorConfig = robotpy_apriltag.AprilTagDetector.Config()
 
@@ -448,7 +456,8 @@ def main():
     cube_max_h = int(config_cube.get('VISION', CUBE_MAX_HUE_TOPIC_NAME))
     cube_max_s = int(config_cube.get('VISION', CUBE_MAX_SAT_TOPIC_NAME))
     cube_max_v = int(config_cube.get('VISION', CUBE_MAX_VAL_TOPIC_NAME))
-   
+    cube_min_area = int(config_cube.get('VISION', CUBE_MIN_AREA_TOPIC_NAME))
+    cube_max_area = 1000
 
     #set up pose estimation
     calib_data_path = "calib_data"
@@ -718,65 +727,93 @@ def main():
                     cube_max_h = int(cube_max_h_ntt.get())
                     cube_max_s = int(cube_max_s_ntt.get())
                     cube_max_v = int(cube_max_v_ntt.get())
-                    
+                    cube_min_area = int(cube_min_area_ntt.get())
+
                 # filter colors in HSV space
                 img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
                 # only keep pixels with colors that match the range in color_config
                 purple_low = np.array([cube_min_h, cube_min_s, cube_min_v])
                 purple_high = np.array([cube_max_h, cube_max_s, cube_max_v])
                 img_mask = cv2.inRange(img_HSV, purple_low, purple_high)
-                img_mask[320:120,0:0] = 0
+                # cubes should appear in the region below the bottom of this region
+                img_mask[0:140,0:320] = 0
                 
                 purple, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                 #sorting the purple pixels from largest to smallest
                 purpleSorted = sorted(purple, key=lambda x: cv2.contourArea(x), reverse=True)
                 
-                found_first_cube = False
+                found_first = False
+                output_and_draw_first = False
                 for y in purpleSorted:
-                    if (cv2.contourArea(y) >= CUBE_MIN_AREA):
 
-                        r_x,r_y,r_w,r_h = cv2.boundingRect(y)
+                    area = cv2.contourArea(y)
 
-                        ar = float(r_w)/r_h 
-                        if time_check == True:
-                            print(ar)
+                    r_x,r_y,r_w,r_h = cv2.boundingRect(y)
 
-                        center_x = r_x + int(round(r_w / 2))
-                        angle = cube_regress_angle(center_x) # get angle (degrees) using x location
+                    ar = float(r_w)/r_h 
 
-                        if (ar > 0.9 and ar < 4) and (angle > -35.0 and angle < 35.0):
-                            
-                            if found_first_cube == False:
-                                #print(f'a={cv2.contourArea(y)}')
-                                center_y = r_y + int(round(r_h / 2))
-                                #print(f'cube_x={center_x} cube_y={center_y}')
-                                distance = cube_regress_distance(center_y) # get distance (inches) using y location 
-                   
-                                image_num += 1
-                                image_time = time.process_time() - t1_time
-                                pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
-                                cube_pose_data_bytes_ntt.set(pose_data)
-                                NetworkTableInstance.getDefault().flush()
+                    center_x = r_x + int(round(r_w / 2))
+                    angle = cube_regress_angle(center_x) # get angle (degrees) using x location
 
-                                found_first_cube = True
+                    center_y = r_y + int(round(r_h / 2))
+                    distance = cube_regress_distance(center_y) # get distance (inches) using y location
 
-                            if db == True:
-                                if found_first_cube == True:
-                                    txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
-                                    cube_pose_data_string_header_ntt.set(txt)
-                                    cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
+                    #Extent is the ratio of contour area to bounding rectangle area.
+                    extent = float(area) / (r_w * r_h)
 
-                                cv2.drawContours(img, [y], -1, (0,255,0), 1)
+                    #if time_check == True:
+                    #    print(f'num={len(purpleSorted)} ar={area:4.1f} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
 
-                                outputStream.putFrame(img) # send to dashboard
-                                outputMask.putFrame(img_mask) # send to dashboard
+                    #cv2.drawContours(img, y, -1, (0,255,0), 2)
 
+                    #(ar > 0.65 and ar < 4)                      and
+                    if (area > 400 and area < 3750) and \
+                        (center_y > 140 and center_y < 240) and \
+                        (extent > 0.65 and extent < 1.2) and \
+                        (angle > -35.0 and angle < 35.0):
+
+                            if (center_y > 205): # at really close, can't see the bottom, aspect ratio goes way up 
+                                ar_max = 6.5
+                            else:
+                                ar_max = 1.5
+
+                            if (ar > 0.65 and ar < ar_max):
+
+                                if found_first == False:
+                                    image_num += 1
+                                    image_time = time.process_time() - t1_time
+                                    pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
+                                    cube_pose_data_bytes_ntt.set(pose_data)
+                                    NetworkTableInstance.getDefault().flush()
+                                    found_first = True
+                                    output_and_draw_first = True
+
+                                if db == True:
+                                    if output_and_draw_first == True:
+                                        txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
+                                        cube_pose_data_string_header_ntt.set(txt)
+                                        cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
+                                        cube_angle_ntt.set(angle)
+                                        output_and_draw_first = False
+                                    cv2.drawContours(img, [y], 0, (0,255,0), 1) # draw current
+                                    outputStream.putFrame(img) # send to dashboard
+                                    outputMask.putFrame(img_mask) # send to dashboard
+                                
+                                #break # 1 cube, then check again with new image
+                
                 if db == True:
                     outputStream.putFrame(img) # send to dashboard
                     outputMask.putFrame(img_mask) # send to dashboard
                     if savefile_ntt.get() == True:
-                        file_write_cubes(cubeconfigfile_ntt.get(), cube_min_h_ntt.get(), cube_min_s_ntt.get(), cube_min_v_ntt.get(), cube_max_h_ntt.get(), cube_max_s_ntt.get(), cube_max_v_ntt.get())
+                        file_write_cubes(cubeconfigfile_ntt.get(), \
+                            cube_min_h_ntt.get(), \
+                            cube_min_s_ntt.get(), \
+                            cube_min_v_ntt.get(), \
+                            cube_max_h_ntt.get(), \
+                            cube_max_s_ntt.get(), \
+                            cube_max_v_ntt.get(), \
+                            cube_min_area_ntt.get())
                         savefile_ntt.set(False)
             
             else:
