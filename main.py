@@ -50,9 +50,11 @@ def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
         x_deg={math.degrees(tag_poses[tag_pose].rotation().X()):3.1f} \
         y_deg={math.degrees(tag_poses[tag_pose].rotation().Y()):3.1f} \
         z_deg={math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f} '
+
+        # subtract 3% of distance from Y because on camera tilt
         string_data_t += f'id={tag.getId()} \
         x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.2f} \
-        y_in={(tag_poses[tag_pose].translation().Y() * 39.37):3.2f} \
+        y_in={(tag_poses[tag_pose].translation().Y() - (0.0075 * tag_poses[tag_pose].translation().Z())  * 39.37):3.2f} \
         z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.2f} '
         tag_pose +=1
     
@@ -152,7 +154,8 @@ def file_write_cubes(file,
                 min_v,
                 max_h,
                 max_s,
-                max_v):
+                max_v,
+                min_area):
 
     parser = configparser.ConfigParser()
 
@@ -164,6 +167,7 @@ def file_write_cubes(file,
     parser.set('VISION', CUBE_MAX_HUE_TOPIC_NAME, str(int(max_h)))
     parser.set('VISION', CUBE_MAX_SAT_TOPIC_NAME, str(int(max_s)))
     parser.set('VISION', CUBE_MAX_VAL_TOPIC_NAME, str(int(max_v)))
+    parser.set('VISION', CUBE_MIN_AREA_TOPIC_NAME, str(int(min_area)))
     
     #print(f'file={file} mh={str(min_h)} ms={str(min_s)} mv={str(min_v)} xh={str(max_h)} xs={str(max_s)} xv={str(max_v)}')
 
@@ -330,10 +334,12 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
     # start the array with sequence number, the RIO's time, image time, and tag type
     tag_pose = 0
     byte_array += struct.pack(">LffBB", sequence_num, rio_time, image_time, 1, len(tags))
+    # subtract 3% of the distance Z from the y because of camera tilt
     for tag in tags:
         byte_array += struct.pack(">Bffffff", tag.getId(), \
             tag_poses[tag_pose].rotation().X(), tag_poses[tag_pose].rotation().Y(), tag_poses[tag_pose].rotation().Z(), \
-            tag_poses[tag_pose].translation().X(), tag_poses[tag_pose].translation().Y(), tag_poses[tag_pose].translation().Z())
+            tag_poses[tag_pose].translation().X(), tag_poses[tag_pose].translation().Y() - 0.0075 * tag_poses[tag_pose].translation().Z(), \
+            tag_poses[tag_pose].translation().Z())
         tag_pose += 1
     return byte_array
 
@@ -604,6 +610,8 @@ def main():
                         z_in_ntt.set(z_in)
                         img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
                     outputStream.putFrame(img) # send to dashboard
+                    if WRITE_TAG_IMAGE == True:
+                        cv2.imwrite(f'tag_images/tag_{str(rio_time)}.jpg', img)
                     NetworkTableInstance.getDefault().flush()
                     if savefile_ntt.get() == True:
                         file_write_tags(tagconfigfile_ntt.get(), threads_ntt.get(), \
@@ -773,7 +781,7 @@ def main():
                         (extent > 0.65 and extent < 1.2) and \
                         (angle > -35.0 and angle < 35.0):
 
-                            if (center_y > 205): # at really close, can't see the bottom, aspect ratio goes way up 
+                            if (center_y > 195): # at really close, can't see the bottom, aspect ratio goes way up 
                                 ar_max = 6.5
                             else:
                                 ar_max = 1.5
