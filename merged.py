@@ -29,7 +29,7 @@ SHARPENING_DEFAULT = 0.25
 APRILTAG_DEBUG_MODE_DEFAULT = False
 DECISION_MARGIN_DEFAULT = 125
 CONE_MIN_AREA = 350
-CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.PiGS.320.240" # "MultiMatrix.npz.webcam.320.240" # "MultiMatrix.npz.webcam.640.480"
+CAMERA_CAL_FILE_NAME = "MultiMatrix.npz.PiGS.640.480" # "MultiMatrix.npz" #"MultiMatrix.npz.PiGS.320.240" #"MultiMatrix.npz" #MultiMatrix.npz.PiGS.640.480" # "MultiMatrix.npz.PiGS.320.240" # "MultiMatrix.npz.webcam.320.240" # "MultiMatrix.npz.webcam.640.480"
 THREADS_TOPIC_NAME = "/Vision/Threads"
 DECIMATE_TOPIC_NAME = "/Vision/Decimate"
 BLUR_TOPIC_NAME = "/Vision/Blur"
@@ -799,9 +799,10 @@ def main():
 
                 for tag in detected:
                     if tag.getDecisionMargin() > float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and \
+                        (tag.getHamming() == 0) and \
                         (tag.getId() >= 1 and tag.getId() <= 8):
-                        #print(f'id={tag.getId()} DM={tag.getDecisionMargin()}')
                         tag_pose = apriltag_est.estimateHomography(tag)
+                        #print(f'id={tag.getId()} e={tag.getHamming()} DM={int(round(tag.getDecisionMargin()))} x={int(round(tag_pose.translation().X()*39.37))} z={int(round(tag_pose.translation().Z()*39.37))}')
                         tag_poses.append(tag_pose)
                         tags.append(tag)
                     
@@ -825,7 +826,27 @@ def main():
                         remove_image_files('/home/pi/tag_images')
                         tag_record_remove_ntt.set(False)
                     if tag_record_ntt.get() == True:
-                        cv2.imwrite(f'tag_images/tag_{str(rio_time)}.jpg', img)
+                        # the ID's of all tags in images with > 1 tag should be all on the same side
+                        mismatch = False
+                        '''
+                        if len(tags) > 1:
+                            t = tags[0]
+                            print(t)
+                            id = t.getID() # says getID() not a member of tag
+                            if id == 5 or id == 6 or id == 7 or id == 8:
+                                blue = True
+                            else:
+                                blue = False
+                            for i in tags:
+                                id = i.getID()
+                                if (blue == True and (id == 1 or id == 2 or id == 3 or id == 4)) or \
+                                    (blue == False and (id == 5 or id == 6 or id == 7 or id == 8)):
+                                    cv2.imwrite(f'tag_images/ERROR_TAG_{str(rio_time)}.jpg', img)
+                                    mismatch = True
+                                    break
+                        '''
+                        if mismatch == False:
+                            cv2.imwrite(f'tag_images/tag_{str(rio_time)}.jpg', img)
                     NetworkTableInstance.getDefault().flush()
                     if savefile_ntt.get() == True:
                         file_write_tags(tagconfigfile_ntt.get(), threads_ntt.get(), \
