@@ -33,10 +33,13 @@ class NTGetBoolean:
         # stop subscribing/publishing
         self.boolTopic.close()
 
-CHESS_BOARD_DIM = (4,3)
+CHESS_BOARD_DIM = (10,7)
+#CHESS_BOARD_DIM = (4,3)
 
 ntinst = NetworkTableInstance.getDefault()
-ntinst.startServer()
+print("connect as client")
+ntinst.startClient4("raspberrypi910")
+ntinst.setServerTeam(910)
 savefile_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save Image"), False, False, False)
 quit_ntt = NTGetBoolean(ntinst.getBooleanTopic("/Vision/Save Quit"), False, False, False)
 time.sleep(0.5)
