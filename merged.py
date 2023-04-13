@@ -88,6 +88,8 @@ CUBE_MIN_AREA_TOPIC_NAME = "/Vision/Cube Min Area"
 CUBE_MIN_AREA = 44 #275
 CUBE_ANGLE_TOPIC_NAME = "/Vision/Cube Angle"
 WRITE_TAG_IMAGE = False
+TAG_RECORD_ENABLE_TOPIC_NAME = "/Vision/Tag Record"
+TAG_RECORD_REMOVE_TOPIC_NAME = "/Vision/Tag Remove"
 
 
 class NTConnectType(Enum):
@@ -252,7 +254,7 @@ def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
         z_deg={math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f} '
 
         # subtract 3% of distance from Y because on camera tilt
-        string_data_t += f'id={tag.getId()} \
+        string_data_t += f'id={tag.getId()} dm={tag.getDecisionMargin()} e={tag.getHamming()} \
         x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.2f} \
         y_in={(tag_poses[tag_pose].translation().Y() - (0.0075 * tag_poses[tag_pose].translation().Z())  * 39.37):3.2f} \
         z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.2f} '
@@ -536,7 +538,7 @@ def pose_data_bytes(sequence_num, rio_time, image_time, tags, tag_poses):
     byte_array += struct.pack(">LffBB", sequence_num, rio_time, image_time, 1, len(tags))
     # subtract 3% of the distance Z from the y because of camera tilt
     for tag in tags:
-        byte_array += struct.pack(">Bffffff", tag.getId(), \
+        byte_array += struct.pack(">BBfffffff", tag.getId(), tag.getHamming(), tag.getDecisionMargin(), \
             tag_poses[tag_pose].rotation().X(), tag_poses[tag_pose].rotation().Y(), tag_poses[tag_pose].rotation().Z(), \
             tag_poses[tag_pose].translation().X(), tag_poses[tag_pose].translation().Y() - 0.0075 * tag_poses[tag_pose].translation().Z(), \
             tag_poses[tag_pose].translation().Z())
@@ -548,9 +550,14 @@ def piece_pose_data_bytes(sequence_num, rio_time, image_time, type, dist, angle)
     # report a single cone, tag type 2 is cone
     # start the array with sequence number, the RIO's time, image time, and tag type
     byte_array += struct.pack(">LffBB", sequence_num, rio_time, image_time, type, 1)
-    byte_array += struct.pack(">Bffffff", 2, 0, angle, 0, 0, 0, dist) # rotation y is angle, translation z is distance
+    byte_array += struct.pack(">BBfffffff", 0, 0, 2, 0, angle, 0, 0, 0, dist) # rotation y is angle, translation z is distance
     return byte_array
 
+def remove_image_files(path):
+    for filename in os.listdir(path): 
+        file_path = os.path.join(path, filename)  
+        if os.path.isfile(file_path):
+            os.remove(file_path)  
 
 def main():
     
@@ -618,6 +625,8 @@ def main():
     cube_enable_ntt = NTGetBoolean(ntinst.getBooleanTopic(CUBE_ENABLE_TOPIC_NAME), False, False, False)
     cube_min_area_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_MIN_AREA_TOPIC_NAME), CUBE_MIN_AREA, CUBE_MIN_AREA, CUBE_MIN_AREA)
     cube_angle_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_ANGLE_TOPIC_NAME), 0.0, 0.0, 0.0)
+    tag_record_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_ENABLE_TOPIC_NAME), False, False, False)
+    tag_record_remove_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_REMOVE_TOPIC_NAME), False, False, False)
 
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
@@ -728,7 +737,8 @@ def main():
     current_seconds = 0
     prev_seconds = 0
     temp_sec = 30
-    
+    tag_recording = False
+
     while True:
         rio_time = rio_time_ntt.get()
         start_time = time.time()
@@ -788,7 +798,8 @@ def main():
                 tags = []
 
                 for tag in detected:
-                    if tag.getDecisionMargin() > float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and (tag.getId() >= 1 and tag.getId() <= 8):
+                    if tag.getDecisionMargin() > float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and \
+                        (tag.getId() >= 1 and tag.getId() <= 8):
                         #print(f'id={tag.getId()} DM={tag.getDecisionMargin()}')
                         tag_pose = apriltag_est.estimateHomography(tag)
                         tag_poses.append(tag_pose)
@@ -810,7 +821,10 @@ def main():
                         z_in_ntt.set(z_in)
                         img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
                     outputStream.putFrame(img) # send to dashboard
-                    if WRITE_TAG_IMAGE == True:
+                    if tag_record_remove_ntt.get() == True:
+                        remove_image_files('/home/pi/tag_images')
+                        tag_record_remove_ntt.set(False)
+                    if tag_record_ntt.get() == True:
                         cv2.imwrite(f'tag_images/tag_{str(rio_time)}.jpg', img)
                     NetworkTableInstance.getDefault().flush()
                     if savefile_ntt.get() == True:
