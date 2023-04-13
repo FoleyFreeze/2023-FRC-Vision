@@ -4,12 +4,13 @@ import numpy as np
 from cscore import CameraServer
 import time
 # Checker board size
-#CHESS_BOARD_DIM = (10,7)
-CHESS_BOARD_DIM = (4,3)
+CHESS_BOARD_DIM = (10,7)
+#CHESS_BOARD_DIM = (4,3)
 
 # The size of Square in the checker board.
-SQUARE_SIZE = 0.14318 # meters
+#SQUARE_SIZE = 0.14318 # meters
 #SQUARE_SIZE = 0.95 # inches
+SQUARE_SIZE = 0.85 # inches
 
 # termination criteria
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
