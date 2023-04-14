@@ -72,5 +72,6 @@ CUBE_ANGLE_TOPIC_NAME = "/Vision/Cube Angle"
 WRITE_TAG_IMAGE = False
 TAG_RECORD_ENABLE_TOPIC_NAME = "/Vision/Tag Record"
 TAG_RECORD_REMOVE_TOPIC_NAME = "/Vision/Tag Remove"
+CUBE_RECORD_DATA_TOPIC_NAME = "/Vision/Cube Record"
 
 

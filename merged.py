@@ -90,6 +90,7 @@ CUBE_ANGLE_TOPIC_NAME = "/Vision/Cube Angle"
 WRITE_TAG_IMAGE = False
 TAG_RECORD_ENABLE_TOPIC_NAME = "/Vision/Tag Record"
 TAG_RECORD_REMOVE_TOPIC_NAME = "/Vision/Tag Remove"
+CUBE_RECORD_DATA_TOPIC_NAME = "/Vision/Cube Record"
 
 
 class NTConnectType(Enum):
@@ -200,6 +201,15 @@ class ColorConfig:
         self.max_value = max_value
         
 
+class PieceData:
+    def __init__(self, num, rio_time, image_time, type, distance, angle):
+        self.image_num = num
+        self.rio_time = rio_time
+        self.image_time = time_time
+        self.type = type
+        self.distance = distance
+        self.angle = angle
+
 def cone_regress_distance(y):
     return 0.0
 
@@ -208,10 +218,11 @@ def cone_regress_angle(x):
 
 def cube_regress_distance(y):
     terms = [
-     1.2771808803349470e+003,
-    -1.7563262260930927e+001,
-     8.3891846278823054e-002,
-    -1.3635814383994302e-004
+     1.2115510462660388e+004,
+    -1.2200835293404849e+002,
+     4.6268048077239438e-001,
+    -7.7889550413196289e-004,
+     4.8969502846673041e-007
     ]
 
     t = 1
@@ -223,10 +234,8 @@ def cube_regress_distance(y):
 
 def cube_regress_angle(x):
     terms = [
-    -4.3078951162495621e+001,
-     5.6874667271821433e-001,
-    -1.1817444894340965e-003,
-     9.5078384378752064e-007
+    -4.3339787465344905e+001,
+     1.5839453576541901e-001
     ]
 
     t = 1
@@ -234,7 +243,7 @@ def cube_regress_angle(x):
     for c in terms:
         r += c * t
         t *= x
-    return r - 10 # offset to correct 
+    return r
 
 def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
     string_header = ""
@@ -562,7 +571,7 @@ def remove_image_files(path):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.CLIENT)
+    ntconnect = NTConnectType(NTConnectType.SERVER)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
@@ -627,6 +636,7 @@ def main():
     cube_angle_ntt = NTGetDouble(ntinst.getDoubleTopic(CUBE_ANGLE_TOPIC_NAME), 0.0, 0.0, 0.0)
     tag_record_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_ENABLE_TOPIC_NAME), False, False, False)
     tag_record_remove_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_REMOVE_TOPIC_NAME), False, False, False)
+    cube_record_data_ntt = NTGetBoolean(ntinst.getBooleanTopic(CUBE_RECORD_DATA_TOPIC_NAME), False, False, False)
 
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
@@ -744,7 +754,7 @@ def main():
         start_time = time.time()
         current_seconds = start_time
         time_check = False
-        if current_seconds - prev_seconds >= UPTIME_UPDATE_INTERVAL:
+        if current_seconds - prev_seconds >= 5: #UPTIME_UPDATE_INTERVAL:
             prev_seconds = current_seconds
             seconds = seconds + 1
             temp_sec = temp_sec + 1
@@ -830,15 +840,17 @@ def main():
                         mismatch = False
                         '''
                         if len(tags) > 1:
-                            t = tags[0]
-                            print(t)
-                            id = t.getID() # says getID() not a member of tag
+                            i = None
+                            for t in tags:
+                                i = t
+                                break
+                            id = i.getID()
                             if id == 5 or id == 6 or id == 7 or id == 8:
                                 blue = True
                             else:
                                 blue = False
-                            for i in tags:
-                                id = i.getID()
+                            for j in tags:
+                                id = j.getID()
                                 if (blue == True and (id == 1 or id == 2 or id == 3 or id == 4)) or \
                                     (blue == False and (id == 5 or id == 6 or id == 7 or id == 8)):
                                     cv2.imwrite(f'tag_images/ERROR_TAG_{str(rio_time)}.jpg', img)
@@ -1005,18 +1017,24 @@ def main():
                     #Extent is the ratio of contour area to bounding rectangle area.
                     extent = float(area) / (r_w * r_h)
 
-                    #if time_check == True:
-                    #    print(f'num={len(purpleSorted)} ar={area:4.1f} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
+                    if db == True:
+                        if cube_record_data_ntt.get() == True:
+                            cube_data = f'{len(purpleSorted)},{area:4.1f},{center_x},{center_y},{ar:2.1f},{extent:2.1f},{distance:3.1f},{angle:2.1f}'
+                            with open('cube_data.txt', 'a') as f:
+                                f.write(cube_data)
+                                f.write('\n')
+                        if time_check == True:
+                            print(f'num={len(purpleSorted)} ar={area:4.1f} cube_x={center_x} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
 
                     #cv2.drawContours(img, y, -1, (0,255,0), 2)
 
                     #(ar > 0.65 and ar < 4)                      and
-                    if (area > 400 and area < 3750) and \
-                        (center_y > 140 and center_y < 240) and \
-                        (extent > 0.65 and extent < 1.2) and \
-                        (angle > -35.0 and angle < 35.0):
+                    if (area > 2*300 and area < 15000) and \
+                        (center_y > 140*2 and center_y < 240*2) and \
+                        (extent > 0.65 and extent < 1.3):
+                        #(angle > -35.0 and angle < 35.0)
 
-                            if (center_y > 195): # at really close, can't see the bottom, aspect ratio goes way up 
+                            if (center_y > 195*2): # at really close, can't see the bottom, aspect ratio goes way up 
                                 ar_max = 6.5
                             else:
                                 ar_max = 1.5
@@ -1044,7 +1062,7 @@ def main():
                                     outputMask.putFrame(img_mask) # send to dashboard
                                 
                                 #break # 1 cube, then check again with new image
-                
+                        
                 if db == True:
                     outputStream.putFrame(img) # send to dashboard
                     outputMask.putFrame(img_mask) # send to dashboard
