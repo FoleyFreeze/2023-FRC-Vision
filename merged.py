@@ -218,11 +218,11 @@ def cone_regress_angle(x):
 
 def cube_regress_distance(y):
     terms = [
-     1.2115510462660388e+004,
-    -1.2200835293404849e+002,
-     4.6268048077239438e-001,
-    -7.7889550413196289e-004,
-     4.8969502846673041e-007
+     1.1868127811170485e+004,
+    -1.1779443616571591e+002,
+     4.4091701194070537e-001,
+    -7.3366166006484613e-004,
+     4.5645150487563571e-007
     ]
 
     t = 1
@@ -232,10 +232,12 @@ def cube_regress_distance(y):
         t *= y
     return r
 
-def cube_regress_angle(x):
+def cube_regress_px_per_deg(x):
     terms = [
-    -4.3339787465344905e+001,
-     1.5839453576541901e-001
+     3.5532409852434665e+000,
+     1.2494444575812640e-001,
+    -1.2590900028485905e-003,
+     4.6332937085921512e-006
     ]
 
     t = 1
@@ -263,7 +265,7 @@ def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
         z_deg={math.degrees(tag_poses[tag_pose].rotation().Z()):3.1f} '
 
         # subtract 3% of distance from Y because on camera tilt
-        string_data_t += f'id={tag.getId()} dm={tag.getDecisionMargin()} e={tag.getHamming()} \
+        string_data_t += f'id={tag.getId()} dm={tag.getDecisionMargin():5.1f} e={tag.getHamming()} \
         x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.2f} \
         y_in={(tag_poses[tag_pose].translation().Y() - (0.0075 * tag_poses[tag_pose].translation().Z())  * 39.37):3.2f} \
         z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.2f} '
@@ -559,7 +561,7 @@ def piece_pose_data_bytes(sequence_num, rio_time, image_time, type, dist, angle)
     # report a single cone, tag type 2 is cone
     # start the array with sequence number, the RIO's time, image time, and tag type
     byte_array += struct.pack(">LffBB", sequence_num, rio_time, image_time, type, 1)
-    byte_array += struct.pack(">BBfffffff", 0, 0, 2, 0, angle, 0, 0, 0, dist) # rotation y is angle, translation z is distance
+    byte_array += struct.pack(">ff", angle, dist) 
     return byte_array
 
 def remove_image_files(path):
@@ -571,7 +573,7 @@ def remove_image_files(path):
 def main():
     
     # start NetworkTables
-    ntconnect = NTConnectType(NTConnectType.SERVER)
+    ntconnect = NTConnectType(NTConnectType.CLIENT)
     ntinst = NetworkTableInstance.getDefault()
     if ntconnect == NTConnectType.SERVER:
         ntinst.startServer()
@@ -754,7 +756,7 @@ def main():
         start_time = time.time()
         current_seconds = start_time
         time_check = False
-        if current_seconds - prev_seconds >= 5: #UPTIME_UPDATE_INTERVAL:
+        if current_seconds - prev_seconds >= UPTIME_UPDATE_INTERVAL:
             prev_seconds = current_seconds
             seconds = seconds + 1
             temp_sec = temp_sec + 1
@@ -938,8 +940,10 @@ def main():
                                         #print(f'cone_x={center_x} cone_y={center_y}')
 
                                         # use cube distance and angle for cone as well, should be close enough for angles at least
-                                        distance = cube_regress_distance(center_y) # get distance using y location
-                                        angle = cube_regress_angle(center_x) # get angle using x location
+                                        distance = cube_regress_distance(center_y) # get distance in INCHES using y center of cube
+                                        px_per_deg = cube_regress_px_per_deg(center_y) # get pixel per degree
+                    
+                                        angle = (1 / px_per_deg) * (center_x - w/2)
 
                                         image_num += 1
                                         image_time = time.process_time() - t1_time
@@ -991,7 +995,7 @@ def main():
                 purple_high = np.array([cube_max_h, cube_max_s, cube_max_v])
                 img_mask = cv2.inRange(img_HSV, purple_low, purple_high)
                 # cubes should appear in the region below the bottom of this region
-                img_mask[0:140,0:320] = 0
+                img_mask[0:260,0:640] = 0
                 
                 purple, useless = cv2.findContours(img_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -1009,11 +1013,11 @@ def main():
                     ar = float(r_w)/r_h 
 
                     center_x = r_x + int(round(r_w / 2))
-                    angle = cube_regress_angle(center_x) # get angle (degrees) using x location
-
                     center_y = r_y + int(round(r_h / 2))
                     distance = cube_regress_distance(center_y) # get distance (inches) using y location
-
+                    px_per_deg = cube_regress_px_per_deg(distance) # get pixel per degree
+                    angle = (1 / px_per_deg) * (center_x - w/2)
+                    
                     #Extent is the ratio of contour area to bounding rectangle area.
                     extent = float(area) / (r_w * r_h)
 
@@ -1023,16 +1027,16 @@ def main():
                             with open('cube_data.txt', 'a') as f:
                                 f.write(cube_data)
                                 f.write('\n')
-                        if time_check == True:
-                            print(f'num={len(purpleSorted)} ar={area:4.1f} cube_x={center_x} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
+                        #if time_check == True and area > 222 and ar > 0.6 and ar < 2.3:
+                            #print(f'num={len(purpleSorted)} ar={area:4.1f} cube_x={center_x} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
+                            #print(f'ar={area:4.1f} cube_x={center_x} cube_y={center_y} ppd={px_per_deg:1.1f} d={distance:3.1f} {angle:2.1f} deg')
 
                     #cv2.drawContours(img, y, -1, (0,255,0), 2)
 
                     #(ar > 0.65 and ar < 4)                      and
-                    if (area > 2*300 and area < 15000) and \
-                        (center_y > 140*2 and center_y < 240*2) and \
+                    if (area > 420 and area < 15000) and \
+                        (center_y > 280 and center_y < 240*2) and \
                         (extent > 0.65 and extent < 1.3):
-                        #(angle > -35.0 and angle < 35.0)
 
                             if (center_y > 195*2): # at really close, can't see the bottom, aspect ratio goes way up 
                                 ar_max = 6.5
