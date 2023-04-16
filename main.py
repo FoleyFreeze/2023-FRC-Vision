@@ -63,9 +63,9 @@ def pose_data_string(sequence_num, rio_time, time, tags, tag_poses):
 
         # subtract 3% of distance from Y because on camera tilt
         string_data_t += f'id={tag.getId()} dm={tag.getDecisionMargin():5.1f} e={tag.getHamming()} \
-        x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.2f} \
-        y_in={(tag_poses[tag_pose].translation().Y() - (0.0075 * tag_poses[tag_pose].translation().Z())  * 39.37):3.2f} \
-        z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.2f} '
+        x_in={(tag_poses[tag_pose].translation().X() * 39.37):3.1f} \
+        y_in={(tag_poses[tag_pose].translation().Y() - (0.0075 * tag_poses[tag_pose].translation().Z())  * 39.37):3.1f} \
+        z_in={(tag_poses[tag_pose].translation().Z() * 39.37):3.1f} '
         tag_pose +=1
     
     return string_header, string_data_rot, string_data_t, z_in
@@ -111,24 +111,28 @@ def file_write_tags(file,
                 refine, 
                 sharpen, 
                 atdebug, 
-                decisionmargin,
+                decisionmargin_min,
+                decisionmargin_max
                 ):
 
     parser = configparser.ConfigParser()
 
     parser.add_section('VISION')
-    parser.set('VISION', THREADS_TOPIC_NAME, str(threads))
+    parser.set('VISION', THREADS_TOPIC_NAME, str(int(threads)))
     parser.set('VISION', BLUR_TOPIC_NAME, str(blur))
     parser.set('VISION', REFINE_EDGES_TOPIC_NAME, str(refine))
-    parser.set('VISION', SHARPENING_TOPIC_NAME, str(sharpen))
+    parser.set('VISION', SHARPENING_TOPIC_NAME, str(round(sharpen,2)))
     parser.set('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME, str(atdebug))
-    parser.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decisionmargin))
-    parser.set('VISION', DECIMATE_TOPIC_NAME, str(decimate))
+    parser.set('VISION', DECISION_MARGIN_MIN_TOPIC_NAME, str(round(decisionmargin_min)))
+    parser.set('VISION', DECIMATE_TOPIC_NAME, str(round(decimate,2)))
     parser.set('VISION', TAG_CONFIG_FILE_TOPIC_NAME, str(file))
-    
+    parser.set('VISION', DECISION_MARGIN_MAX_TOPIC_NAME, str(round(decisionmargin_max)))
+
     #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
     with open(file, 'w') as config:
         parser.write(config)
+        print('wrote tag file:')
+        print({'VISION': dict(parser['VISION'])})
 
 def file_write_cones(file,
                 min_h,
@@ -142,21 +146,20 @@ def file_write_cones(file,
 
     parser.add_section('VISION')
     parser.set('VISION', CONE_CONFIG_FILE_TOPIC_NAME, str(file))
-    parser.set('VISION', CONE_MIN_HUE_TOPIC_NAME, str(int(min_h)))
-    parser.set('VISION', CONE_MIN_SAT_TOPIC_NAME, str(int(min_s)))
-    parser.set('VISION', CONE_MIN_VAL_TOPIC_NAME, str(int(min_v)))
-    parser.set('VISION', CONE_MAX_HUE_TOPIC_NAME, str(int(max_h)))
-    parser.set('VISION', CONE_MAX_SAT_TOPIC_NAME, str(int(max_s)))
-    parser.set('VISION', CONE_MAX_VAL_TOPIC_NAME, str(int(max_v)))
+    parser.set('VISION', CONE_MIN_HUE_TOPIC_NAME, str(round(min_h)))
+    parser.set('VISION', CONE_MIN_SAT_TOPIC_NAME, str(round(min_s)))
+    parser.set('VISION', CONE_MIN_VAL_TOPIC_NAME, str(round(min_v)))
+    parser.set('VISION', CONE_MAX_HUE_TOPIC_NAME, str(round(max_h)))
+    parser.set('VISION', CONE_MAX_SAT_TOPIC_NAME, str(round(max_s)))
+    parser.set('VISION', CONE_MAX_VAL_TOPIC_NAME, str(round(max_v)))
     
     #print(f'file={file} mh={str(min_h)} ms={str(min_s)} mv={str(min_v)} xh={str(max_h)} xs={str(max_s)} xv={str(max_v)}')
 
     #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
     with open(file, 'w') as config:
         parser.write(config)
-
-    print('write')
-    print({'VISION': dict(parser['VISION'])})
+        print('wrote cone file:')
+        print({'VISION': dict(parser['VISION'])})
 
 def file_write_cubes(file,
                 min_h,
@@ -171,22 +174,21 @@ def file_write_cubes(file,
 
     parser.add_section('VISION')
     parser.set('VISION', CUBE_CONFIG_FILE_TOPIC_NAME, str(file))
-    parser.set('VISION', CUBE_MIN_HUE_TOPIC_NAME, str(int(min_h)))
-    parser.set('VISION', CUBE_MIN_SAT_TOPIC_NAME, str(int(min_s)))
-    parser.set('VISION', CUBE_MIN_VAL_TOPIC_NAME, str(int(min_v)))
-    parser.set('VISION', CUBE_MAX_HUE_TOPIC_NAME, str(int(max_h)))
-    parser.set('VISION', CUBE_MAX_SAT_TOPIC_NAME, str(int(max_s)))
-    parser.set('VISION', CUBE_MAX_VAL_TOPIC_NAME, str(int(max_v)))
-    parser.set('VISION', CUBE_MIN_AREA_TOPIC_NAME, str(int(min_area)))
+    parser.set('VISION', CUBE_MIN_HUE_TOPIC_NAME, str(round(min_h)))
+    parser.set('VISION', CUBE_MIN_SAT_TOPIC_NAME, str(round(min_s)))
+    parser.set('VISION', CUBE_MIN_VAL_TOPIC_NAME, str(round(min_v)))
+    parser.set('VISION', CUBE_MAX_HUE_TOPIC_NAME, str(round(max_h)))
+    parser.set('VISION', CUBE_MAX_SAT_TOPIC_NAME, str(round(max_s)))
+    parser.set('VISION', CUBE_MAX_VAL_TOPIC_NAME, str(round(max_v)))
+    parser.set('VISION', CUBE_MIN_AREA_TOPIC_NAME, str(round(min_area)))
     
     #print(f'file={file} mh={str(min_h)} ms={str(min_s)} mv={str(min_v)} xh={str(max_h)} xs={str(max_s)} xv={str(max_v)}')
 
     #HEY HEY HEY!!! LOOK AT MEEEEE!!!! >>>pscp.exe pi@10.2.33.177:/home/pi/config.ini C:\Users\23JMurphy\Downloads will copy any file from pi to windows<<<
     with open(file, 'w') as config:
         parser.write(config)
-
-    print('write')
-    print({'VISION': dict(parser['VISION'])})
+        print('wrote cube file:')
+        print({'VISION': dict(parser['VISION'])})
 
 
 def file_read_tag(parser, configfile_failure_ntt):
@@ -194,6 +196,9 @@ def file_read_tag(parser, configfile_failure_ntt):
     if config_exists == True:
         parser.read(TAG_CONFIG_FILE_DEFAULT)
         configfile_failure_ntt.set(False) #if it works mark no error
+        print('read tag file:')
+        print({'VISION': dict(parser['VISION'])})
+
     else: # re-create config and container file to default
         configfile_failure_ntt.set(True) # set error for config file
 
@@ -203,14 +208,18 @@ def file_read_tag(parser, configfile_failure_ntt):
         parser.set('VISION', REFINE_EDGES_TOPIC_NAME, str(REFINE_EDGES_DEFAULT))
         parser.set('VISION', SHARPENING_TOPIC_NAME, str(SHARPENING_DEFAULT))
         parser.set('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME, str(APRILTAG_DEBUG_MODE_DEFAULT))
-        parser.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(DECISION_MARGIN_DEFAULT))
+        parser.set('VISION', DECISION_MARGIN_MIN_TOPIC_NAME, str(DECISION_MARGIN_DEFAULT))
         parser.set('VISION', DECIMATE_TOPIC_NAME, str(DECIMATE_DEFAULT))
         parser.set('VISION', TAG_CONFIG_FILE_TOPIC_NAME, str(TAG_CONFIG_FILE_DEFAULT))
+        parser.set('VISION', DECISION_MARGIN_MAX_TOPIC_NAME, str(DECISION_MARGIN_DEFAULT))
 
         with open("/home/pi/" + TAG_CONFIG_FILE_DEFAULT, 'w') as config:
             parser.write(config)
-        
+            print('wrote tag file:')
+            print({'VISION': dict(parser['VISION'])})
+
         configfile_failure_ntt.set(True) # recreated config file
+
 
 def file_read_cone(parser, configfile_failure_ntt):
     config_exists = os.path.isfile(CONE_CONFIG_FILE_DEFAULT)
@@ -218,7 +227,7 @@ def file_read_cone(parser, configfile_failure_ntt):
         parser.read(CONE_CONFIG_FILE_DEFAULT)
 
         configfile_failure_ntt.set(False) #if it works mark no error
-        print('read cone')
+        print('read cone file:')
         print({'VISION': dict(parser['VISION'])})
     else: # re-create config and container file to default
         configfile_failure_ntt.set(True) # set error for config file
@@ -235,6 +244,9 @@ def file_read_cone(parser, configfile_failure_ntt):
 
         with open("/home/pi/" + CONE_CONFIG_FILE_DEFAULT, 'w') as config:
             parser.write(config)
+            print('wrote cone file:')
+            print({'VISION': dict(parser['VISION'])})
+
         configfile_failure_ntt.set(False) # config file recreated
 
 def file_read_cube(parser, configfile_failure_ntt):
@@ -242,6 +254,8 @@ def file_read_cube(parser, configfile_failure_ntt):
     if config_exists == True:
         parser.read(CUBE_CONFIG_FILE_DEFAULT)
         configfile_failure_ntt.set(False) #if it works mark no error
+        print('read cube file:')
+        print({'VISION': dict(parser['VISION'])})
     else: # re-create config and container file to default
         configfile_failure_ntt.set(True) # set error for config file
 
@@ -258,6 +272,8 @@ def file_read_cube(parser, configfile_failure_ntt):
 
         with open("/home/pi/" + CUBE_CONFIG_FILE_DEFAULT, 'w') as config:
             parser.write(config)
+            print('wrote cube file:')
+            print({'VISION': dict(parser['VISION'])})
         configfile_failure_ntt.set(False) # config file recreated
 
 def nt_update_tags(config,
@@ -267,7 +283,8 @@ def nt_update_tags(config,
               refineEdges,
               decodeSharpening,
               ATDebug,
-              decision,
+              decision_min,
+              decision_max,
               configfile
             ):
     # sync the stuff in the file with matching values in the file
@@ -278,7 +295,9 @@ def nt_update_tags(config,
     refineEdges.set(ast.literal_eval(config.get('VISION', REFINE_EDGES_TOPIC_NAME)))
     decodeSharpening.set(float(config.get('VISION', SHARPENING_TOPIC_NAME)))
     ATDebug.set(ast.literal_eval(config.get('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME)))
-    decision.set(float(config.get('VISION', DECISION_MARGIN_TOPIC_NAME)))
+    decision_min.set(float(config.get('VISION', DECISION_MARGIN_MIN_TOPIC_NAME)))
+    decision_max.set(float(config.get('VISION', DECISION_MARGIN_MAX_TOPIC_NAME)))
+
     configfile.set(str(config.get('VISION', TAG_CONFIG_FILE_TOPIC_NAME)))
 
 def nt_update_cubes(config,
@@ -399,7 +418,7 @@ def main():
     refineEdges_ntt = NTGetBoolean(ntinst.getBooleanTopic(REFINE_EDGES_TOPIC_NAME),REFINE_EDGES_DEFAULT, REFINE_EDGES_DEFAULT, REFINE_EDGES_DEFAULT) 
     decodeSharpening_ntt = NTGetDouble(ntinst.getDoubleTopic(SHARPENING_TOPIC_NAME), SHARPENING_DEFAULT, SHARPENING_DEFAULT, SHARPENING_DEFAULT)
     ATDebug_ntt = NTGetBoolean(ntinst.getBooleanTopic(APRILTAG_DEBUG_MODE_TOPIC_NAME), APRILTAG_DEBUG_MODE_DEFAULT, APRILTAG_DEBUG_MODE_DEFAULT, APRILTAG_DEBUG_MODE_DEFAULT)
-    decision_margin_ntt = NTGetDouble(ntinst.getDoubleTopic(DECISION_MARGIN_TOPIC_NAME), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
+    decision_margin_min_ntt = NTGetDouble(ntinst.getDoubleTopic(DECISION_MARGIN_MIN_TOPIC_NAME), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
     tagconfigfile_ntt = NTGetString(ntinst.getStringTopic(TAG_CONFIG_FILE_TOPIC_NAME), TAG_CONFIG_FILE_DEFAULT,TAG_CONFIG_FILE_DEFAULT, TAG_CONFIG_FILE_DEFAULT)
     coneconfigfile_ntt = NTGetString(ntinst.getStringTopic(CONE_CONFIG_FILE_TOPIC_NAME), CONE_CONFIG_FILE_DEFAULT,CONE_CONFIG_FILE_DEFAULT, CONE_CONFIG_FILE_DEFAULT)    
     cubeconfigfile_ntt = NTGetString(ntinst.getStringTopic(CUBE_CONFIG_FILE_TOPIC_NAME), CUBE_CONFIG_FILE_DEFAULT,CUBE_CONFIG_FILE_DEFAULT, CUBE_CONFIG_FILE_DEFAULT)
@@ -436,6 +455,8 @@ def main():
     tag_record_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_ENABLE_TOPIC_NAME), False, False, False)
     tag_record_remove_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_REMOVE_TOPIC_NAME), False, False, False)
     cube_record_data_ntt = NTGetBoolean(ntinst.getBooleanTopic(CUBE_RECORD_DATA_TOPIC_NAME), False, False, False)
+    decision_margin_max_ntt = NTGetDouble(ntinst.getDoubleTopic(DECISION_MARGIN_MAX_TOPIC_NAME), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
+
 
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
@@ -450,7 +471,7 @@ def main():
     file_read_cube(config_cube, configfilefail_ntt)
 
     nt_update_tags(config_tag,threads_ntt, quadDecimate_ntt, blur_ntt, refineEdges_ntt, \
-        decodeSharpening_ntt, ATDebug_ntt, decision_margin_ntt, tagconfigfile_ntt)
+        decodeSharpening_ntt, ATDebug_ntt, decision_margin_min_ntt, decision_margin_max_ntt, tagconfigfile_ntt)
     nt_update_cones(config_cone, coneconfigfile_ntt, \
         cone_min_h_ntt, cone_min_s_ntt, cone_min_v_ntt, cone_max_h_ntt, cone_max_s_ntt, cone_max_v_ntt)
     nt_update_cubes(config_cube, cubeconfigfile_ntt, \
@@ -463,7 +484,7 @@ def main():
     detectorConfig.quadDecimate = float(config_tag.get('VISION', DECIMATE_TOPIC_NAME))
     detectorConfig.quadSigma = float (config_tag.get('VISION', BLUR_TOPIC_NAME))
     detectorConfig.refineEdges = ast.literal_eval(config_tag.get('VISION', REFINE_EDGES_TOPIC_NAME))
-    detectorConfig.decodeSharpening = float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME))
+    detectorConfig.decodeSharpening = float(config_tag.get('VISION', SHARPENING_TOPIC_NAME))
     detectorConfig.debug = ast.literal_eval(config_tag.get('VISION', APRILTAG_DEBUG_MODE_TOPIC_NAME))
     detector.setConfig(detectorConfig)
     
@@ -515,7 +536,7 @@ def main():
     #cvSink = CameraServer.getVideo()
 
     picam2 = Picamera2()
-    picam2_config = picam2.create_still_configuration({"size": (w, h)})
+    picam2_config = picam2.create_still_configuration( {'size': (w, h)} )
     #picam2.still_configuration.controls.FrameRate = fps
     print(picam2_config["main"])
     picam2.configure(picam2_config)
@@ -588,6 +609,8 @@ def main():
             # Tags
             if tag_enable.get() == True:
 
+                dm_list = {'1': [999999, 0], '2': [999999, 0], '3' : [999999, 0], '4' : [999999, 0], '5' : [999999, 0], '6' : [999999, 0], '7' : [999999, 0], '8' : [999999, 0]}
+
                 gimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                              
                 db = debug_ntt.get()
@@ -600,21 +623,34 @@ def main():
                     detectorConfig.decodeSharpening = float(decodeSharpening_ntt.get())
                     detectorConfig.debug = ATDebug_ntt.get()
                     detector.setConfig(detectorConfig)
-                    config_tag.set('VISION', DECISION_MARGIN_TOPIC_NAME, str(decision_margin_ntt.get()))
+                    config_tag.set('VISION', DECISION_MARGIN_MIN_TOPIC_NAME, str(decision_margin_min_ntt.get()))
+                    config_tag.set('VISION', DECISION_MARGIN_MAX_TOPIC_NAME, str(decision_margin_max_ntt.get()))
 
                 detected = detector.detect(gimg)
                 tag_poses = []
                 tags = []
 
                 for tag in detected:
-                    if tag.getDecisionMargin() > float(config_tag.get('VISION', DECISION_MARGIN_TOPIC_NAME)) and \
+                    if tag.getDecisionMargin() > float(config_tag.get('VISION', DECISION_MARGIN_MIN_TOPIC_NAME)) and \
+                        tag.getDecisionMargin() < float(config_tag.get('VISION', DECISION_MARGIN_MAX_TOPIC_NAME)) and \
                         (tag.getHamming() == 0) and \
                         (tag.getId() >= 1 and tag.getId() <= 8):
                         tag_pose = apriltag_est.estimateHomography(tag)
                         #print(f'id={tag.getId()} e={tag.getHamming()} DM={int(round(tag.getDecisionMargin()))} x={int(round(tag_pose.translation().X()*39.37))} z={int(round(tag_pose.translation().Z()*39.37))}')
                         tag_poses.append(tag_pose)
                         tags.append(tag)
-                    
+                        ''' gets ranges of DM vales report - this is for figuring out min and max DM
+                        if db == True:
+                            t = tag.getId()
+                            dm = tag.getDecisionMargin()
+                            if dm < dm_list[str(t)][0]:
+                                dm_list[str(t)][0] = dm
+                            if dm > dm_list[str(t)][1]:
+                                dm_list[str(t)][1] = dm
+                            if time_check == True:
+                                print (dm_list)
+                        '''
+
                 if len(tags) > 0:
                     image_num += 1
                     image_time = time.process_time() - t1_time
@@ -628,7 +664,7 @@ def main():
                         pose_data_string_header_ntt.set(header)
                         pose_data_string_data_translation_ntt.set(trans_data)
                         pose_data_string_data_rotation_ntt.set(rot_data)
-                        z_in_ntt.set(z_in)
+                        z_in_ntt.set(round(z_in,1))
                         img = draw_tags(img, tags, tag_poses, rVector, tVector, camMatrix, distCoeffs)
                     outputStream.putFrame(img) # send to dashboard
                     if tag_record_remove_ntt.get() == True:
@@ -660,10 +696,11 @@ def main():
                             cv2.imwrite(f'tag_images/tag_{str(rio_time)}.jpg', img)
                     NetworkTableInstance.getDefault().flush()
                     if savefile_ntt.get() == True:
+                        print("write tags")
                         file_write_tags(tagconfigfile_ntt.get(), threads_ntt.get(), \
                             quadDecimate_ntt.get(), blur_ntt.get(), refineEdges_ntt.get(), \
                             decodeSharpening_ntt.get(), ATDebug_ntt.get(), \
-                            decision_margin_ntt.get())
+                            decision_margin_min_ntt.get(), decision_margin_max_ntt.get())
                         savefile_ntt.set(False)
 
             # Cones
@@ -694,8 +731,9 @@ def main():
 
                 #sorting the yellow pixels from largest to smallest
                 yellowSorted = sorted(yellow, key=lambda x: cv2.contourArea(x), reverse=True)
-                
+
                 found_first_cone = False
+                output_and_draw_first_cone = False
                 for y in yellowSorted:
                     if cv2.contourArea(y) >= CONE_MIN_AREA:
                         r_x,r_y,r_w,r_h = cv2.boundingRect(y)
@@ -732,14 +770,13 @@ def main():
                                     
                                     if found_first_cone == False:
                                         #print(f'a={cv2.contourArea(y)}')
-                                        center_x = r_x + int(round(r_w / 2))
-                                        center_y = r_y + int(round(r_h / 2))
+                                        center_x = r_x + int(round(r_w / 2)) + CUBE_X_OFFSET
+                                        center_y = r_y + int(round(r_h / 2)) + CONE_Y_OFFSET
                                         #print(f'cone_x={center_x} cone_y={center_y}')
 
                                         # use cube distance and angle for cone as well, should be close enough for angles at least
                                         distance = cube_regress_distance(center_y) # get distance in INCHES using y center of cube
-                                        px_per_deg = cube_regress_px_per_deg(center_y) # get pixel per degree
-                    
+                                        px_per_deg = cube_regress_px_per_deg(distance) # get pixel per degree
                                         angle = (1 / px_per_deg) * (center_x - w/2)
 
                                         image_num += 1
@@ -752,14 +789,14 @@ def main():
 
                                     if db == True:
                                         
-                                        if found_first_cone == True:
+                                        if output_and_draw_first_cone == True:
                                             txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
                                             cone_pose_data_string_header_ntt.set(txt)
-                                            cv2.drawContours(img, [y], -1, (0,0,255), 3)
                                             cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
                                             #cv2.line(img, (r_x, r_y + int(round(r_y * TOP_LINE_DIST_FROM_TOP))), (r_x + r_w, r_y + int(round(r_y * TOP_LINE_DIST_FROM_TOP))), (255, 0 , 0), 3)
                                             #cv2.line(img, (r_x, r_y + int(round(r_y * BOTTOM_LINE_DIST_FROM_TOP))), (r_x + r_w, r_y + int(round(r_y * BOTTOM_LINE_DIST_FROM_TOP))), (255, 0 , 0), 3)
-
+                                            output_and_draw_first_cone = False
+                                        cv2.drawContours(img, [y], -1, (0,0,255), 3)
                                         #cv2.rectangle(img,(r_x, r_y), (r_x + int(round(r_w * 0.15)), r_y + int(round(r_h * 0.30))), (0,255,0), 3) # upper left corner
                                         outputStream.putFrame(img) # send to dashboard
                                         outputMask.putFrame(img_mask) # send to dashboard
@@ -809,8 +846,8 @@ def main():
 
                     ar = float(r_w)/r_h 
 
-                    center_x = r_x + int(round(r_w / 2))
-                    center_y = r_y + int(round(r_h / 2))
+                    center_x = r_x + int(round(r_w / 2)) + CUBE_X_OFFSET
+                    center_y = r_y + int(round(r_h / 2)) + CUBE_Y_OFFSET
                     distance = cube_regress_distance(center_y) # get distance (inches) using y location
                     px_per_deg = cube_regress_px_per_deg(distance) # get pixel per degree
                     angle = (1 / px_per_deg) * (center_x - w/2)
@@ -824,9 +861,10 @@ def main():
                             with open('cube_data.txt', 'a') as f:
                                 f.write(cube_data)
                                 f.write('\n')
-                        #if time_check == True and area > 222 and ar > 0.6 and ar < 2.3:
+                        if time_check == True and area > 222 and ar > 0.6 and ar < 2.3:
+                        #if time_check == True:
                             #print(f'num={len(purpleSorted)} ar={area:4.1f} cube_x={center_x} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
-                            #print(f'ar={area:4.1f} cube_x={center_x} cube_y={center_y} ppd={px_per_deg:1.1f} d={distance:3.1f} {angle:2.1f} deg')
+                            print(f'ar={area:4.1f} cube_x={center_x} cube_y={center_y} ppd={px_per_deg:1.1f} d={distance:3.1f} {angle:2.1f} deg')
 
                     #cv2.drawContours(img, y, -1, (0,255,0), 2)
 
