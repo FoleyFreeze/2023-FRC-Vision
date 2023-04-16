@@ -18,7 +18,8 @@ BLUR_TOPIC_NAME = "/Vision/Blur"
 REFINE_EDGES_TOPIC_NAME = "/Vision/Edge Refine"
 SHARPENING_TOPIC_NAME = "/Vision/Sharpening"
 APRILTAG_DEBUG_MODE_TOPIC_NAME = "/Vision/April Tag Debug"
-DECISION_MARGIN_TOPIC_NAME = "/Vision/Decision Margin"
+DECISION_MARGIN_MIN_TOPIC_NAME = "/Vision/Decision Margin Min"
+DECISION_MARGIN_MAX_TOPIC_NAME = "/Vision/Decision Margin Max"
 TAG_CONFIG_FILE_TOPIC_NAME = "/Vision/Tag Config File"
 ACTIVE_TOPIC_NAME = "/Vision/Active"
 POSE_DATA_RAW_TOPIC_NAME = "Tag Pose Data Bytes" #cannot say /Vision becuase we already do in NTGetRaw
@@ -73,5 +74,9 @@ WRITE_TAG_IMAGE = False
 TAG_RECORD_ENABLE_TOPIC_NAME = "/Vision/Tag Record"
 TAG_RECORD_REMOVE_TOPIC_NAME = "/Vision/Tag Remove"
 CUBE_RECORD_DATA_TOPIC_NAME = "/Vision/Cube Record"
+CUBE_X_OFFSET = 0
+CUBE_Y_OFFSET = 6
+CONE_X_OFFSET = 0
+CONE_Y_OFFSET = 0
 
 

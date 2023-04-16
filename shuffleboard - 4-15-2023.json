@@ -1,0 +1,735 @@
+{
+  "tabPane": [
+    {
+      "title": "SmartDashboard",
+      "autoPopulate": true,
+      "autoPopulatePrefix": "SmartDashboard/",
+      "widgetPane": {
+        "gridSize": 88.0,
+        "showGrid": true,
+        "hgap": 10.0,
+        "vgap": 10.0,
+        "titleType": 0,
+        "tiles": {}
+      }
+    },
+    {
+      "title": "LiveWindow",
+      "autoPopulate": true,
+      "autoPopulatePrefix": "LiveWindow/",
+      "widgetPane": {
+        "gridSize": 128.0,
+        "showGrid": true,
+        "hgap": 16.0,
+        "vgap": 16.0,
+        "titleType": 0,
+        "tiles": {}
+      }
+    },
+    {
+      "title": "Tag Stuff",
+      "autoPopulate": false,
+      "autoPopulatePrefix": "",
+      "widgetPane": {
+        "gridSize": 88.0,
+        "showGrid": true,
+        "hgap": 16.0,
+        "vgap": 16.0,
+        "titleType": 0,
+        "tiles": {
+          "6,0": {
+            "size": [
+              7,
+              5
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_source0": "camera_server://final image",
+              "_title": "final image",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Crosshair/Show crosshair": false,
+              "Crosshair/Crosshair color": "#00FF00FF",
+              "Controls/Show controls": true,
+              "Controls/Rotation": "NONE",
+              "compression": -1.0,
+              "fps": -1,
+              "imageWidth": 0,
+              "imageHeight": 0
+            }
+          },
+          "0,2": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Active",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "4,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/April Tag Debug",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "0,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Debug Mode",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "4,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Edge Refine",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "4,2": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Save File",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "0,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Blur",
+              "_title": "Blur",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 2.0,
+              "Slider Settings/Block increment": 0.0625,
+              "Visuals/Display value": true
+            }
+          },
+          "2,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Decimate",
+              "_title": "Decimate",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": -0.0,
+              "Slider Settings/Max": 5.0,
+              "Slider Settings/Block increment": 0.0625,
+              "Visuals/Display value": true
+            }
+          },
+          "0,3": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Sharpening",
+              "_title": "Sharpening",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 2.0,
+              "Slider Settings/Block increment": 0.0625,
+              "Visuals/Display value": true
+            }
+          },
+          "2,2": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Threads",
+              "_title": "Threads",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 1.0,
+              "Slider Settings/Max": 4.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "4,4": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Simple Dial",
+              "_source0": "network_table:///Vision/Z In",
+              "_title": "Vision/Z In",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Range/Min": 0.0,
+              "Range/Max": 100.0,
+              "Visuals/Show value": true
+            }
+          },
+          "2,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Tag Enable",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "4,3": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Tag Record",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "0,4": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_title": "DM Min",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 400.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "2,3": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_title": "DM Max",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 400.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Camera Cal",
+      "autoPopulate": false,
+      "autoPopulatePrefix": "",
+      "widgetPane": {
+        "gridSize": 128.0,
+        "showGrid": true,
+        "hgap": 16.0,
+        "vgap": 16.0,
+        "titleType": 0,
+        "tiles": {
+          "4,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Save Image",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "4,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Save Quit",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "0,0": {
+            "size": [
+              4,
+              3
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_source0": "camera_server://final image",
+              "_title": "final image",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Crosshair/Show crosshair": true,
+              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Controls/Show controls": true,
+              "Controls/Rotation": "NONE",
+              "compression": -1.0,
+              "fps": -1,
+              "imageWidth": 0,
+              "imageHeight": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Cone stuff",
+      "autoPopulate": false,
+      "autoPopulatePrefix": "",
+      "widgetPane": {
+        "gridSize": 128.0,
+        "showGrid": true,
+        "hgap": 16.0,
+        "vgap": 16.0,
+        "titleType": 0,
+        "tiles": {
+          "0,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Cone Enable",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "2,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Sat",
+              "_title": "Max Sat",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "2,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Hue",
+              "_title": "Max Hue",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 179.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "0,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Sat",
+              "_title": "Min Sat",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "0,2": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Val",
+              "_title": "Min Val",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "2,2": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Val",
+              "_title": "Max Val",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "0,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Hue",
+              "_title": "Min Hue",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 179.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "4,0": {
+            "size": [
+              3,
+              2
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_source0": "camera_server://mask image",
+              "_title": "mask image",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Crosshair/Show crosshair": true,
+              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Controls/Show controls": true,
+              "Controls/Rotation": "NONE",
+              "compression": -1.0,
+              "fps": -1,
+              "imageWidth": 0,
+              "imageHeight": 0
+            }
+          },
+          "4,2": {
+            "size": [
+              3,
+              2
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_source0": "camera_server://final image",
+              "_title": "final image",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Crosshair/Show crosshair": true,
+              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Controls/Show controls": true,
+              "Controls/Rotation": "NONE",
+              "compression": -1.0,
+              "fps": -1,
+              "imageWidth": 0,
+              "imageHeight": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Cube Stuff",
+      "autoPopulate": false,
+      "autoPopulatePrefix": "",
+      "widgetPane": {
+        "gridSize": 55.0,
+        "showGrid": true,
+        "hgap": 10.0,
+        "vgap": 10.0,
+        "titleType": 0,
+        "tiles": {
+          "4,0": {
+            "size": [
+              9,
+              7
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_source0": "camera_server://final image",
+              "_title": "final image",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Crosshair/Show crosshair": true,
+              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Controls/Show controls": true,
+              "Controls/Rotation": "NONE",
+              "compression": -1.0,
+              "fps": -1,
+              "imageWidth": 0,
+              "imageHeight": 0
+            }
+          },
+          "6,7": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Cube Enable",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "2,2": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Sat",
+              "_title": "Max Sat",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 0.0625,
+              "Visuals/Display value": true
+            }
+          },
+          "0,0": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Hue",
+              "_title": "Min Hue",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "2,0": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Hue",
+              "_title": "Max Hue",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 0.0625,
+              "Visuals/Display value": true
+            }
+          },
+          "0,2": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Sat",
+              "_title": "Min Sat",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 0.0625,
+              "Visuals/Display value": true
+            }
+          },
+          "13,0": {
+            "size": [
+              7,
+              7
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_source0": "camera_server://mask image",
+              "_title": "mask image",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Crosshair/Show crosshair": true,
+              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Controls/Show controls": true,
+              "Controls/Rotation": "NONE",
+              "compression": -1.0,
+              "fps": -1,
+              "imageWidth": 0,
+              "imageHeight": 0
+            }
+          },
+          "0,4": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Val",
+              "_title": "Min Brightness",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "2,4": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Val",
+              "_title": "Max Brightness",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "10,7": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Save File",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "13,7": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Cube Record",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          },
+          "8,7": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///Vision/Debug Mode",
+              "_title": "Boolean Box",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Colors/Color when true": "#7CFC00FF",
+              "Colors/Color when false": "#8B0000FF"
+            }
+          },
+          "4,7": {
+            "size": [
+              2,
+              2
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Debug Mode",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
+          }
+        }
+      }
+    }
+  ],
+  "windowGeometry": {
+    "x": -8.0,
+    "y": -8.0,
+    "width": 1382.0,
+    "height": 744.0
+  }
+}
