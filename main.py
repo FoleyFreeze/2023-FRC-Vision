@@ -536,23 +536,13 @@ def main():
     #cvSink = CameraServer.getVideo()
 
     picam2 = Picamera2()
-    picam2_config = picam2.create_still_configuration( {'size': (w, h)} )
+    picam2_config = picam2.create_still_configuration( {'size': (w, h), 'format' : 'RGB888'} )
     #picam2.still_configuration.controls.FrameRate = fps
-    print(picam2_config["main"])
     picam2.configure(picam2_config)
-    '''picam2.set_controls({
-    "AwbEnable": 1,
-    "AeEnable": 1,
-    "Brightness": 1.0,
-    "Saturation": 1.5,
-    "Contrast" : 1.0,
-    "AnalogueGain" : 1.0,
-    "ColourGains": (1.5,4.5)
-    })
-    picam2.awb_mode = 'tungsten'
-    '''
+    picam2.set_controls({"AwbMode": controls.AwbModeEnum.Fluorescent})
     picam2.start()
     time.sleep(3)
+    print(picam2_config["main"])
 
     # (optional) Setup a CvSource. This will send images back to the Dashboard
     outputStream = CameraServer.putVideo("final image", cam_config['width'], cam_config['height'])
