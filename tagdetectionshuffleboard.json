@@ -479,6 +479,19 @@
               "_glyph": 148,
               "_showGlyph": false
             }
+          },
+          "8,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "ComboBox Chooser",
+              "_source0": "network_table:///SmartDashboard/Simplicity Chooser",
+              "_title": "Simplicity Chooser",
+              "_glyph": 148,
+              "_showGlyph": false
+            }
           }
         }
       }
@@ -1371,23 +1384,6 @@
               "Visuals/Display value": true
             }
           },
-          "4,2": {
-            "size": [
-              2,
-              1
-            ],
-            "content": {
-              "_type": "Number Slider",
-              "_source0": "network_table:///Vision/Cube Max Val",
-              "_title": "Max Sat",
-              "_glyph": 148,
-              "_showGlyph": false,
-              "Slider Settings/Min": 0.0,
-              "Slider Settings/Max": 255.0,
-              "Slider Settings/Block increment": 0.0625,
-              "Visuals/Display value": true
-            }
-          },
           "2,0": {
             "size": [
               2,
@@ -1400,25 +1396,8 @@
               "_glyph": 148,
               "_showGlyph": false,
               "Slider Settings/Min": 0.0,
-              "Slider Settings/Max": 179.0,
-              "Slider Settings/Block increment": 0.0625,
-              "Visuals/Display value": true
-            }
-          },
-          "2,2": {
-            "size": [
-              2,
-              1
-            ],
-            "content": {
-              "_type": "Number Slider",
-              "_source0": "network_table:///Vision/Cube Min Val",
-              "_title": "Min Sat",
-              "_glyph": 148,
-              "_showGlyph": false,
-              "Slider Settings/Min": 0.0,
               "Slider Settings/Max": 255.0,
-              "Slider Settings/Block increment": 0.0625,
+              "Slider Settings/Block increment": 1.0,
               "Visuals/Display value": true
             }
           },
@@ -1434,7 +1413,7 @@
               "_glyph": 148,
               "_showGlyph": false,
               "Slider Settings/Min": 0.0,
-              "Slider Settings/Max": 179.0,
+              "Slider Settings/Max": 255.0,
               "Slider Settings/Block increment": 0.0625,
               "Visuals/Display value": true
             }
@@ -1475,6 +1454,53 @@
               "fps": -1,
               "imageWidth": 0,
               "imageHeight": 0
+            }
+          },
+          "3,2": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Min Val",
+              "_title": "Min Val",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "3,3": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///Vision/Cube Max Val",
+              "_title": "Max Val",
+              "_glyph": 148,
+              "_showGlyph": false,
+              "Slider Settings/Min": 0.0,
+              "Slider Settings/Max": 255.0,
+              "Slider Settings/Block increment": 1.0,
+              "Visuals/Display value": true
+            }
+          },
+          "5,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Toggle Button",
+              "_source0": "network_table:///Vision/Save File",
+              "_title": "Toggle Button",
+              "_glyph": 148,
+              "_showGlyph": false
             }
           }
         }
