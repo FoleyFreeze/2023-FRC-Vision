@@ -456,7 +456,7 @@ def main():
     tag_record_remove_ntt = NTGetBoolean(ntinst.getBooleanTopic(TAG_RECORD_REMOVE_TOPIC_NAME), False, False, False)
     cube_record_data_ntt = NTGetBoolean(ntinst.getBooleanTopic(CUBE_RECORD_DATA_TOPIC_NAME), False, False, False)
     decision_margin_max_ntt = NTGetDouble(ntinst.getDoubleTopic(DECISION_MARGIN_MAX_TOPIC_NAME), DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT, DECISION_MARGIN_DEFAULT)
-
+    cube_distance_ntt = NTGetDouble(ntinst.getDoubleTopic("/Vision/Cube Distance"), 0.0, 0.0, 0.0)
 
     detector = robotpy_apriltag.AprilTagDetector()
     detector.addFamily("tag16h5")
@@ -826,8 +826,8 @@ def main():
                 #sorting the purple pixels from largest to smallest
                 purpleSorted = sorted(purple, key=lambda x: cv2.contourArea(x), reverse=True)
                 
-                found_first = False
-                output_and_draw_first = False
+                cubes = []
+                cube_contours = []
                 for y in purpleSorted:
 
                     area = cv2.contourArea(y)
@@ -838,9 +838,9 @@ def main():
 
                     center_x = r_x + int(round(r_w / 2)) + CUBE_X_OFFSET
                     center_y = r_y + int(round(r_h / 2)) + CUBE_Y_OFFSET
-                    distance = cube_regress_distance(center_y) # get distance (inches) using y location
-                    px_per_deg = cube_regress_px_per_deg(distance) # get pixel per degree
-                    angle = (1 / px_per_deg) * (center_x - w/2)
+                    #distance = cube_regress_distance(center_y) # get distance (inches) using y location
+                    #px_per_deg = cube_regress_px_per_deg(distance) # get pixel per degree
+                    #angle = (1 / px_per_deg) * (center_x - w/2)
                     
                     #Extent is the ratio of contour area to bounding rectangle area.
                     extent = float(area) / (r_w * r_h)
@@ -851,10 +851,12 @@ def main():
                             with open('cube_data.txt', 'a') as f:
                                 f.write(cube_data)
                                 f.write('\n')
+                            cube_record_data_ntt.set(False)
                         if time_check == True and area > 222 and ar > 0.6 and ar < 2.3:
                         #if time_check == True:
                             #print(f'num={len(purpleSorted)} ar={area:4.1f} cube_x={center_x} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f} d={distance:3.1f} {angle:2.1f} deg')
-                            print(f'ar={area:4.1f} cube_x={center_x} cube_y={center_y} ppd={px_per_deg:1.1f} d={distance:3.1f} {angle:2.1f} deg')
+                            #print(f'ar={area:4.1f} cube_x={center_x} cube_y={center_y} ppd={px_per_deg:1.1f} d={distance:3.1f} {angle:2.1f} deg')
+                            print(f'num={len(purpleSorted)} ar={area:4.1f} cube_x={center_x} cube_y={center_y} a_r={ar:2.1f} ex={extent:2.1f}')
 
                     #cv2.drawContours(img, y, -1, (0,255,0), 2)
 
@@ -869,28 +871,49 @@ def main():
                                 ar_max = 1.5
 
                             if (ar > 0.65 and ar < ar_max):
+ 
+                                # found a cube
+                                cubes.append((center_x,center_y))
+                                cube_contours.append(y)
 
-                                if found_first == False:
-                                    image_num += 1
-                                    image_time = time.process_time() - t1_time
-                                    pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
-                                    cube_pose_data_bytes_ntt.set(pose_data)
-                                    NetworkTableInstance.getDefault().flush()
-                                    found_first = True
-                                    output_and_draw_first = True
+                if len(cubes) > 0:
 
-                                if db == True:
-                                    if output_and_draw_first == True:
-                                        txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
-                                        cube_pose_data_string_header_ntt.set(txt)
-                                        cv2.circle(img, (center_x, center_y), 4, (0,255,0), -1)
-                                        cube_angle_ntt.set(angle)
-                                        output_and_draw_first = False
-                                    cv2.drawContours(img, [y], 0, (0,255,0), 1) # draw current
-                                    outputStream.putFrame(img) # send to dashboard
-                                    outputMask.putFrame(img_mask) # send to dashboard
-                                
-                                #break # 1 cube, then check again with new image
+                    closest_idx = -1
+                    x_diff_min = 999
+                    y_diff_min = 999
+
+                    # find the cube with smallest diff between: center x and center (320) and center y and max y (480)
+                    for cube in range(len(cubes)):
+
+                        cube_x = cubes[cube][0]
+                        cube_y = cubes[cube][1]
+                        if abs(cube_x - 320) < x_diff_min and abs(cube_y - 480) < y_diff_min:
+                            x_diff_min = abs(cube_x - 320)
+                            y_diff_min = abs(cube_y - 480)
+                            closest_idx = cube
+                    
+                    if closest_idx != -1:
+                        distance = cube_regress_distance(cubes[closest_idx][1]) # get distance (inches) using y location
+                        px_per_deg = cube_regress_px_per_deg(distance) # get pixel per degree
+                        angle = (1 / px_per_deg) * (cubes[closest_idx][0] - w/2)
+                        if (distance >= 0 and distance < 360) and (angle >= -45 and angle < 45): # sanity check
+
+                            image_num += 1
+                            image_time = time.process_time() - t1_time
+
+                            pose_data = piece_pose_data_bytes(image_num, rio_time, image_time, 3, distance, angle)
+                            cube_pose_data_bytes_ntt.set(pose_data)
+                            NetworkTableInstance.getDefault().flush()
+
+                            if db == True:
+                                txt = piece_pose_data_string(image_num, rio_time, image_time, distance, angle)
+                                cube_pose_data_string_header_ntt.set(txt)
+                                cube_distance_ntt.set(round(distance,2))
+                                cube_angle_ntt.set(round(angle,2))                            
+                                cv2.circle(img, (cubes[closest_idx][0], cubes[closest_idx][1]), 4, (0,255,0), -1)
+                                cv2.drawContours(img, [cube_contours[closest_idx]], 0, (0,255,0), 1)
+                                outputStream.putFrame(img) # send to dashboard
+                                outputMask.putFrame(img_mask) # send to dashboard
                         
                 if db == True:
                     outputStream.putFrame(img) # send to dashboard
@@ -905,7 +928,7 @@ def main():
                             cube_max_v_ntt.get(), \
                             cube_min_area_ntt.get())
                         savefile_ntt.set(False)
-            
+
             else:
                 continue
 
